@@ -298,6 +298,11 @@ main.Append(CPPPATH=[Dir('ext')])
 # Add shared top-level headers
 main.Prepend(CPPPATH=Dir('include'))
 
+# Della-specific
+main.Prepend(CPPPATH=Dir('/tigress/angl/local/include'))
+main.Prepend(LIBPATH=[Dir('/tigress/angl/local/lib')])
+main.Prepend(LIBPATH=Dir('/tigress/angl/local/lib64'))
+main.Append(LIBS=['protobuf'])
 
 ########################################################################
 #
