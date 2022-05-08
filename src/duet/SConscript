@@ -1,0 +1,7 @@
+Import('*')
+
+SimObject('DuetDriver.py', sim_objects=['DuetDriver'])
+
+Source('DuetDriver.cc')
+
+DebugFlag('DuetDriver')
