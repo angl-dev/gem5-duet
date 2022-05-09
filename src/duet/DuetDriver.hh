@@ -21,6 +21,8 @@ public:
 
     int open (ThreadContext *tc, int mode, int flags) override;
     int ioctl (ThreadContext *tc, unsigned req, Addr buf) override;
+    Addr mmap(ThreadContext *tc, Addr start, uint64_t length,
+              int prot, int tgt_flags, int tgt_fd, off_t offset) override;
 };
 
 }

@@ -1,7 +1,8 @@
 import m5, os
 from m5.objects import *
 
-range_ = AddrRange('512MB')
+range_      = AddrRange('512MB')
+nc_range    = AddrRange(0xE102980000, size='512MB')
 
 system = System(
         clk_domain = SrcClockDomain(
@@ -9,10 +10,13 @@ system = System(
             voltage_domain = VoltageDomain(),
             ),
         mem_mode = 'timing',
-        mem_ranges = [range_],
+        mem_ranges = [range_, nc_range],
         cpu = TimingSimpleCPU(),
         mem_ctrl = MemCtrl(
             dram = DDR3_1600_8x8( range = range_ ),
+            ),
+        ncmem_ctrl = MemCtrl(
+            dram = DDR3_1600_8x8( range = nc_range ),
             ),
         membus = SystemXBar(),
         )
@@ -22,6 +26,7 @@ system.cpu.icache_port  = system.membus.cpu_side_ports
 system.cpu.dcache_port  = system.membus.cpu_side_ports
 system.system_port      = system.membus.cpu_side_ports
 system.mem_ctrl.port    = system.membus.mem_side_ports
+system.ncmem_ctrl.port  = system.membus.mem_side_ports
 
 binary = os.path.join (os.path.dirname (os.path.abspath(__file__)),
         "../../tests/test-progs/duet/bin/riscv/linux/test_driver")
