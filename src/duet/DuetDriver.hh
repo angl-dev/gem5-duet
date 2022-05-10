@@ -1,21 +1,24 @@
 #ifndef __DUET_DRIVER_HH
 #define __DUET_DRIVER_HH
 
+#include "params/DuetDriver.hh"
 #include "sim/emul_driver.hh"
 
 namespace gem5
 {
 
 class ThreadContext;
+class DuetSRIFE;
 
 class DuetDriver : public EmulatedDriver
 {
 private:
-    uint32_t    _value;
+    DuetSRIFE * _dev;
 
 public:
-    DuetDriver (const EmulatedDriverParams& p)
-        : EmulatedDriver (p), _value (0x0)
+    DuetDriver (const DuetDriverParams& p)
+        : EmulatedDriver (p)
+          , _dev ( p.dev )
     {
     }
 

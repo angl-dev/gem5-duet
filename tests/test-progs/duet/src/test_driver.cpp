@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <fcntl.h>
-#include <sys/ioctl.h>
+// #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <errno.h>
 
@@ -16,6 +16,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+    /*
     // try read out the initial value
     if (ioctl(fd, 0, &dout)) {
         fprintf ( stderr, "First IOCTL read failed. ERRNO = %d\n", errno );
@@ -56,6 +57,7 @@ int main(int argc, char *argv[]) {
     } else {
         printf ( "Naughty access successfully rejected\n" );
     }
+    */
 
     // try mmap
     volatile uint8_t * vaddr = static_cast<uint8_t *> (
@@ -86,6 +88,8 @@ int main(int argc, char *argv[]) {
             return -1;
         }
     }
+
+    printf ( "Success!\n" );
 
     return 0;
 }

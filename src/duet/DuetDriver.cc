@@ -1,4 +1,5 @@
 #include "duet/DuetDriver.hh"
+#include "duet/DuetSRIFE.hh"
 #include "arch/riscv/page_size.hh"
 #include "debug/DuetDriver.hh"
 #include "cpu/thread_context.hh"
@@ -21,6 +22,9 @@ int DuetDriver::open (ThreadContext *tc, int mode, int flags)
 
 int DuetDriver::ioctl (ThreadContext *tc, unsigned req, Addr buf)
 {
+    return -EINVAL;
+
+    /*
     SETranslatingPortProxy se_proxy(tc);
 
     switch (req) {
@@ -58,6 +62,7 @@ int DuetDriver::ioctl (ThreadContext *tc, unsigned req, Addr buf)
             return -EINVAL;
         }
     }
+    */
 }
 
 Addr DuetDriver::mmap(ThreadContext *tc, Addr start, uint64_t length,
@@ -68,12 +73,13 @@ Addr DuetDriver::mmap(ThreadContext *tc, Addr start, uint64_t length,
 
     DPRINTF (DuetDriver, "mmap(%s) (offset: 0x%x, length: 0x%x)\n",
             filename, offset, length);
-    panic_if (offset >= RiscvISA::PageBytes || offset + length > RiscvISA::PageBytes,
-            "Requested mapping exceeds 1 page");
-    start = mem_state->extendMmap(length);
+    panic_if ( offset + length > _dev->_range.size(),
+            "Requested mapping [0x%x +: 0x%x] exceeds alloted range %s",
+            offset, length, _dev->_range.to_string() );
+    start = mem_state->extendMmap (length);
 
     // Note: In fact, "Uncacheable" flag does not have any effect
-    process->pTable->map(start, (0xE10298ULL << 16) + offset, length,
+    process->pTable->map(start, _dev->_range.start() + offset, length,
             EmulationPageTable::Uncacheable);
 
     return start;
