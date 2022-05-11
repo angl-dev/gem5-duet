@@ -5,11 +5,10 @@
 #include "sim/clocked_object.hh"
 #include "mem/port.hh"
 
-namespace gem5
-{
+namespace gem5 {
+namespace duet {
 
 class DuetDriver;
-
 class DuetSRIFE : public ClockedObject
 {
 private:
@@ -19,7 +18,8 @@ private:
     class InPort : public ResponsePort
     {
     private:
-        bool    _is_upstream_waiting_for_retry;
+        bool        _is_upstream_waiting_for_retry;
+        DuetSRIFE * _owner;
 
     public:
         InPort ( const std::string & name
@@ -28,6 +28,7 @@ private:
                 )
             : ResponsePort ( name, owner, id )
               , _is_upstream_waiting_for_retry (false)
+              , _owner ( owner )
         {
         }
 
@@ -80,6 +81,7 @@ public:
     void init() override;
 };
 
-}
+}   // namespace duet
+}   // namespace gem5
 
 #endif /* #ifndef __DUET_SRI_FE_HH */

@@ -2,9 +2,13 @@ Import('*')
 
 SimObject('DuetDriver.py', sim_objects=['DuetDriver'])
 SimObject('DuetSRIFE.py', sim_objects=['DuetSRIFE'])
+SimObject('DuetAsyncFIFO.py', sim_objects=['DuetAsyncFIFOCtrl', 'DuetAsyncFIFO'])
 
 Source('DuetDriver.cc')
 Source('DuetSRIFE.cc')
+Source('DuetAsyncFIFOCtrl.cc')
+Source('DuetAsyncFIFO.cc')
 
 DebugFlag('DuetDriver')
 DebugFlag('DuetSRI')
+DebugFlag('DuetAsyncFIFO')

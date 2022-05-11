@@ -8,8 +8,8 @@
 #include "sim/process.hh"
 #include "sim/syscall_emul_buf.hh"
 
-namespace gem5
-{
+namespace gem5 {
+namespace duet { 
 
 int DuetDriver::open (ThreadContext *tc, int mode, int flags)
 {
@@ -85,4 +85,5 @@ Addr DuetDriver::mmap(ThreadContext *tc, Addr start, uint64_t length,
     return start;
 }
 
-}
+}   // namespace duet
+}   // namespace gem5

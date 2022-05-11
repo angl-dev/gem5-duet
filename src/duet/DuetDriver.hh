@@ -4,12 +4,13 @@
 #include "params/DuetDriver.hh"
 #include "sim/emul_driver.hh"
 
-namespace gem5
-{
+namespace gem5 {
 
 class ThreadContext;
-class DuetSRIFE;
 
+namespace duet {
+
+class DuetSRIFE;
 class DuetDriver : public EmulatedDriver
 {
 private:
@@ -28,6 +29,7 @@ public:
               int prot, int tgt_flags, int tgt_fd, off_t offset) override;
 };
 
-}
+}   // namespace duet
+}   // namespace gem5
 
 #endif /* #ifndef __DUET_DRIVER_HH */

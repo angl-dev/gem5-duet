@@ -2,20 +2,18 @@
 #include "debug/DuetSRI.hh"
 #include "base/trace.hh"
 
-namespace gem5
-{
+namespace gem5 {
+namespace duet {
 
 AddrRangeList DuetSRIFE::InPort::getAddrRanges () const
 {
     AddrRangeList retList;
-    DuetSRIFE * _owner = dynamic_cast<DuetSRIFE *> (&owner);
     retList.push_back ( _owner->_range );
     return retList;
 }
 
 bool DuetSRIFE::InPort::recvTimingReq ( PacketPtr pkt )
 {
-    DuetSRIFE * _owner = dynamic_cast<DuetSRIFE *> (&owner);
 
     if ( !_owner->handleTiming ( pkt ) ) {
         _is_upstream_waiting_for_retry = true;
@@ -27,7 +25,6 @@ bool DuetSRIFE::InPort::recvTimingReq ( PacketPtr pkt )
 
 void DuetSRIFE::InPort::recvRespRetry ()
 {
-    DuetSRIFE * _owner = dynamic_cast<DuetSRIFE *> (&owner);
     _owner->trySendResp ();
 }
 
@@ -120,4 +117,5 @@ void DuetSRIFE::init ()
     }
 }
 
-}
+}   // namespace duet
+}   // namespace gem5
