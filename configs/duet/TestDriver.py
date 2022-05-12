@@ -5,27 +5,38 @@ range_      = AddrRange('512MB')
 nc_range    = AddrRange(0xE102980000, size='4kB')
 
 system = System(
-        clk_domain = SrcClockDomain(
-            clock = '1GHz',
-            voltage_domain = VoltageDomain(),
-            ),
         mem_mode = 'timing',
         mem_ranges = [range_, nc_range],
-        cpu = TimingSimpleCPU(),
-        mem_ctrl = MemCtrl(
-            dram = DDR3_1600_8x8( range = range_ ),
-            ),
-        sri_fe = DuetSRIFE(
-            range = nc_range
-            ),
-        membus = SystemXBar(),
         )
+
+system.clk_domain = SrcClockDomain( clock = '1GHz', voltage_domain = VoltageDomain() )
+system.cpu = TimingSimpleCPU()
+system.mem_ctrl = MemCtrl(
+        clk_domain = DerivedClockDomain(
+            clk_domain = system.clk_domain,
+            clk_divider = 4
+            ),
+        dram = DDR3_1600_8x8( range = range_ ),
+        )
+system.sri_fe = DuetSRIFE( range = nc_range )
+system.membus = SystemXBar()
+afifo = DuetAsyncFIFO(
+        stage = 10,
+        capacity = 2,
+        upstream_clk_domain = system.clk_domain,
+        downstream_clk_domain = system.mem_ctrl.clk_domain
+        )
+system.afifo = afifo
 
 system.cpu.createInterruptController()
 system.cpu.icache_port  = system.membus.cpu_side_ports
 system.cpu.dcache_port  = system.membus.cpu_side_ports
 system.system_port      = system.membus.cpu_side_ports
-system.mem_ctrl.port    = system.membus.mem_side_ports
+# system.afifo.upstream_clk_domain    = system.clk_domain
+system.afifo.upstream_port          = system.membus.mem_side_ports
+# system.afifo.downstream_clk_domain  = system.mem_ctrl.clk_domain
+system.afifo.downstream_port        = system.mem_ctrl.port
+# system.mem_ctrl.port    = system.membus.mem_side_ports
 system.sri_fe.inport    = system.membus.mem_side_ports
 
 binary = os.path.join (os.path.dirname (os.path.abspath(__file__)),

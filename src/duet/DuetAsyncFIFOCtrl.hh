@@ -11,6 +11,10 @@ namespace duet {
 class DuetAsyncFIFO;
 class DuetAsyncFIFOCtrl : public ClockedObject {
 private:
+
+    // befriend my intended parent class
+    friend class DuetAsyncFIFO;
+
     bool            _is_upstream;
     DuetAsyncFIFO * _owner;
 
@@ -20,10 +24,10 @@ private:
     unsigned        _upward_rptr;
 
     bool            _is_peer_waiting_for_retry;
-    Cycles          _last_pkt_recvd_on_cycle;
+    Cycles          _can_recv_pkt_on_and_after_cycle;
 
     bool            _is_this_waiting_for_retry;
-    Cycles          _last_pkt_sent_on_cycle;
+    Cycles          _can_send_pkt_on_and_after_cycle;
 
     EventFunctionWrapper    _e_try_try_send;
 

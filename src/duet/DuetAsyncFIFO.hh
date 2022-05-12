@@ -12,7 +12,7 @@ class DuetAsyncFIFOCtrl;
 class DuetAsyncFIFO : public SimObject {
 private:
 
-    // befriend intended subclass
+    // befriend my intended subclass
     friend class DuetAsyncFIFOCtrl;
 
     /* Port to Upstream */
@@ -37,11 +37,8 @@ private:
             panic ( "recvAtomic unimpl." );
         }
 
-        void recvFunctional ( PacketPtr pkt ) override {
-            panic ( "recvFunctional unimpl." );
-        }
-
     public:
+        void recvFunctional ( PacketPtr pkt ) override;
         bool recvTimingReq ( PacketPtr pkt ) override;
         void recvRespRetry () override;
     };
@@ -84,6 +81,8 @@ private:
 
 public:
     DuetAsyncFIFO ( const DuetAsyncFIFOParams & p );
+    Port & getPort ( const std::string & if_name
+            , PortID idx = InvalidPortID ) override;
 };
 
 }   // namespace duet

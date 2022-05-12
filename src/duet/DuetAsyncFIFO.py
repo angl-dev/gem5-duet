@@ -9,7 +9,6 @@ class DuetAsyncFIFOCtrl (ClockedObject):
     cxx_header      = "duet/DuetAsyncFIFOCtrl.hh"
 
     is_upstream     = Param.Bool ("If this is an upstream ctrl or a downstream ctrl")
-    owner           = Param.DuetAsyncFIFO (Parent.any, "Parent FIFO")
 
 class DuetAsyncFIFO (SimObject):
     type            = "DuetAsyncFIFO"
@@ -24,22 +23,18 @@ class DuetAsyncFIFO (SimObject):
     downstream_ctrl = Param.DuetAsyncFIFOCtrl ( "Downstream ctrl" )
 
     def __init__ (self, **kwargs):
+        upstream_clk_domain = kwargs.pop ("upstream_clk_domain", None)
+        downstream_clk_domain = kwargs.pop ("downstream_clk_domain", None)
+
         super().__init__(**kwargs)
 
-        self.upstream_ctrl = DuetAsyncFIFOCtrl (
-                is_upstream = True,
-                owner = self )
-        self.downstream_ctrl = DuetAsyncFIFOCtrl (
-                is_upstream = False,
-                owner = self )
+        self.upstream_ctrl = DuetAsyncFIFOCtrl ( is_upstream = True )
+        if upstream_clk_domain:
+            self.upstream_ctrl.clk_domain = upstream_clk_domain
 
-        clk_domain = kwargs.pop ("upstream_clk_domain")
-        if clk_domain:
-            self.upstream_ctrl.clk_domain = clk_domain
-
-        clk_domain = kwargs.pop ("downstream_clk_domain")
-        if clk_domain:
-            self.downstream_ctrl.clk_domain = clk_domain
+        self.downstream_ctrl = DuetAsyncFIFOCtrl ( is_upstream = False )
+        if downstream_clk_domain:
+            self.downstream_ctrl.clk_domain = downstream_clk_domain
 
     def __getattr__ (self, attr):
         if attr == "upstream_clk_domain":
