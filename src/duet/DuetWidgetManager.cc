@@ -13,6 +13,8 @@ AddrRangeList DuetWidgetManager::SRIPort::getAddrRanges () const {
 bool DuetWidgetManager::SRIPort::recvTimingReq ( PacketPtr pkt ) {
     // wake up owner if it is sleeping
     if ( _owner->_is_sleeping ) {
+        assert ( nullptr != _owner->_sri_req_buf );
+
         _owner->_sri_req_buf = pkt;
         _owner->_wakeup ();
         return true;
@@ -31,6 +33,8 @@ bool DuetWidgetManager::SRIPort::recvTimingReq ( PacketPtr pkt ) {
 }
 
 void DuetWidgetManager::SRIPort::recvRespRetry () {
+    assert ( _owner->_is_sri_this_waiting_for_retry );
+
     // postpone retry after `do_cycle` in curCycle()
     if ( _owner->_is_pre_do_cycle () )
         _owner->_is_sri_this_waiting_for_retry = false;
@@ -53,6 +57,8 @@ bool DuetWidgetManager::MemoryPort::recvTimingResp ( PacketPtr pkt ) {
 }
 
 void DuetWidgetManager::MemoryPort::recvReqRetry () {
+    assert ( _owner->_is_mem_this_waiting_for_retry );
+
     // postpone retry after `do_cycle` in curCycle()
     if ( _owner->_is_pre_do_cycle () )
         _owner->_is_mem_this_waiting_for_retry = false;
