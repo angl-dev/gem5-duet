@@ -1,5 +1,4 @@
 #include "duet/DuetWidgetManager.hh"
-#include <pthread.h>
 
 namespace gem5 {
 namespace duet {
@@ -90,7 +89,7 @@ DuetWidgetManager::DuetWidgetManager (
     // validate "range"
     if ( _range.interleaved() ) {
         panic ( "DuetWidgetManager does not support interleaved address range" );
-    } else if ( _range.start() & 0x7 || _range.end() & 0x7 ) {
+    } else if ( (_range.start() & 0x7) || (_range.end() & 0x7) ) {
         panic ( "DuetWidgetManager address range is not aligned to and/or multiples of 8B" );
     }
 }
@@ -255,8 +254,8 @@ bool DuetWidgetManager::_try_push_invocation (
 
 PacketPtr DuetWidgetManager::_try_pop_mem_req () {
     if ( !_mem_req_fifo.empty() ) {
-        PacketPtr pkt = _mem_resp_fifo.front ();
-        _mem_resp_fifo.pop_front ();
+        PacketPtr pkt = _mem_req_fifo.front ();
+        _mem_req_fifo.pop_front ();
         return pkt;
     } else {
         return nullptr;
