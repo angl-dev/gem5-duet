@@ -4,12 +4,16 @@
 #include "params/DuetWidgetManager.hh"
 #include "sim/clocked_object.hh"
 #include "mem/port.hh"
+#include "mem/request.hh"
+#include "mem/packet.hh"
 
 namespace gem5 {
+
+class System;
+
 namespace duet {
 
 class DuetWidget;
-class DuetWidgetExecution;
 
 /*
  * DuetWidgetManager
@@ -108,6 +112,7 @@ private:
 // == Parameterized Member Variables =========================================
 // ===========================================================================
 private:
+    System        * _system;
     unsigned        _fifo_capacity;
     AddrRange       _range;     // address range of this manager
     SRIPort         _sri_port;  // SRI port
@@ -118,6 +123,9 @@ private:
 // == Non-Parameterized Member Variables =====================================
 // ===========================================================================
 private:
+    // we need a requestor ID to be able to send out memory requests
+    RequestorID     _requestorId;
+
     // use _latest_cycle_plus1 to differentiate pre- and post- "do_cycle" phases
     //  pre-"do_cycle" phase:   curTick() >= _latest_cycle_plus1
     //  post-"do_cycle" phase:  curTick() < _latest_cycle_plus1
@@ -165,6 +173,10 @@ private:
     // methods related to event scheduling
     void _wakeup ();
     bool _has_work ();
+
+    // packet & request creation
+    PacketPtr   _initiateLoad ( Addr addr, unsigned size );
+    PacketPtr   _initiateStore ( Addr addr, unsigned size );
 
     // methods related to FIFOs
     bool        _try_push_invocation ( tid_t tid, uintptr_t arg );

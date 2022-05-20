@@ -14,6 +14,7 @@
 
 #else /* #ifdef __DUET_HLS */
 
+    #include <thread>
     #include <mutex>
     #include <condition_variable>
     #include "duet/widget/functor_abstract.hh"
@@ -29,26 +30,36 @@
 template <
     unsigned req_bytes_lg2      = 3
     , unsigned resp_bytes_lg2   = 3
-    , unsigned chan_count       = 1
+#ifdef __DUET_HLS
+    , size_t chan_count       = 1
+#endif /* #ifdef __DUET_HLS */
     >
-class DuetWidgetFunctorTmpl : AbstractDuetWidgetFunctor {
+class DuetWidgetFunctorTmpl : public AbstractDuetWidgetFunctor {
 public:
-
-    static_assert ( chan_count > 0,
-                  "Number of channels must be greater than 0" );
 
     static constexpr unsigned const req_bytes  = 1 << req_bytes_lg2;
     static constexpr unsigned const resp_bytes = 1 << resp_bytes_lg2;
 
-    /* Type definitions */
 #ifndef __DUET_HLS
+    // GEM5 version
     // interface types
-    typedef uintptr_t                       addr_t;
+    typedef uintptr_t               addr_t;
+    typedef retcode_enum_t          retcode_t;
+
+    // kernel
+    virtual void kernel (
+              addr_t                arg
+            , chan_req_header_t *   chan_req_header
+            , chan_req_data_t *     chan_req_data
+            , chan_resp_data_t *    chan_resp_data
+            , retcode_t *           retcode
+            ) = 0;
 
 #else /* #ifndef __DUET_HLS */
     // interface types
     typedef ac_int <80, false>              mem_req_header_t;
     typedef ac_int <64, false>              addr_t;
+    typedef ac_int <64, false>              retcode_t;
 
     // data types
     typedef ac_int <resp_bytes, false>      resp_data_t;
@@ -58,72 +69,70 @@ public:
     typedef ac_channel <mem_req_header_t>   chan_req_header_t;
     typedef ac_channel <resp_data_t>        chan_resp_data_t;
     typedef ac_channel <req_data_t>         chan_req_data_t;
-#endif /* #ifndef __DUET_HLS */
 
-public:
-    // Methods to be implemented per widget
-    //  GEM5: called in the widget execution thread
     #pragma hls_design top
     virtual void kernel (
-              const addr_t &            arg
-            ,       chan_req_header_t   chan_req_header [chan_count]
-            ,       chan_req_data_t     chan_req_data   [chan_count]
-            ,       chan_resp_data_t    chan_resp_data  [chan_count]
+              addr_t            arg
+            , chan_req_header_t chan_req_header [chan_count]
+            , chan_req_data_t   chan_req_data   [chan_count]
+            , chan_resp_data_t  chan_resp_data  [chan_count]
+            , retcode_t *       retcode
             ) = 0;
+#endif /* #ifndef __DUET_HLS */
 
 protected:
     // Kernel API
     //  GEM5: called in the widget execution thread
     void enqueue_req_header (
-              const int &               stage
+                    int                 stage
             ,       chan_req_header_t & chan_req_header
             , const mem_req_header_t &  header
-            ) final;
+            );
 
     void enqueue_req_data (
-              const int &               stage
+                    int                 stage
             ,       chan_req_data_t &   chan_req_data
             , const req_data_t &        data
-            ) final;
+            );
 
     void dequeue_resp_data (
-              const int &               stage
+                    int                 stage
             ,       chan_resp_data_t &  chan_resp_data
             ,       resp_data_t &       data
-            ) final;
+            );
 
 #ifndef __DUET_HLS
     // GEM5-specific impl
 private:
     int                     _stage;
-    stage_blocker_t         _blocker;
-    unsigned                _blocking_chan_id;
-    bool                    _finished;
+    retcode_enum_t          _retcode;
+    chan_req_header_t *     _blocking_chan_req_header;
+    chan_req_data_t *       _blocking_chan_req_data;
+    chan_resp_data_t *      _blocking_chan_resp_data;
 
     std::mutex              _mutex;
     std::condition_variable _cv;
     std::thread             _thread;
 
-    chan_req_header_t       _chan_req_header [chan_count];
-    chan_req_data_t         _chan_req_data   [chan_count];
-    chan_resp_data_t        _chan_resp_data  [chan_count];
-
 public:
     DuetWidgetFunctorTmpl ();
 
     // called by the main thread to invoke `kernel` in a separate thread
-    void invoke ( const uintptr_t & arg ) override final;
+    void invoke (
+              addr_t                arg
+            , chan_req_header_t *   chan_req_header
+            , chan_req_data_t *     chan_req_data
+            , chan_resp_data_t *    chan_resp_data
+            ) override final;
 
     // called by the main thread to advance `kernel`
-    //  return true if finished
-    bool advance () override final;
+    retcode_enum_t advance () override final;
 
     // accessors
-    int                 get_stage ()    const override final { return _stage; }
-    stage_blocker_t     get_blocker ()  const override final { return _blocker; }
-    chan_req_header_t & get_blocking_chan_req_header () override final;
-    chan_req_data_t &   get_blocking_chan_req_data   () override final;
-    chan_resp_data_t &  get_blocking_chan_resp_data  () override final;
+    int             get_stage ()     const override final { return _stage; }
+    chan_req_header_t * get_blocking_chan_req_header () const override final;
+    chan_req_data_t *   get_blocking_chan_req_data   () const override final;
+    chan_resp_data_t *  get_blocking_chan_resp_data  () const override final;
 
 #endif /* #ifndef __DUET_HLS */
 };

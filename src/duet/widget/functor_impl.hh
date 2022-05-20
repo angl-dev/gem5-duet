@@ -1,30 +1,26 @@
-template <unsigned Q, unsigned R, unsigned N>
-DuetWidgetFunctorTmpl <Q, R, N>
+template <unsigned Q, unsigned R>
+DuetWidgetFunctorTmpl <Q, R>
     ::DuetWidgetFunctorTmpl ()
-        : _stage            ( -1 )
-        , _blocker          ( BLOCKER_INV )
-        , _blocking_chan_id ( N )
-        , _finished         ( false )
+        : _stage                    ( -1 )
+        , _retcode                  ( AbstractDuetWidgetFunctor::RETCODE_RUNNING )
+        , _blocking_chan_req_header ( nullptr )
+        , _blocking_chan_req_data   ( nullptr )
+        , _blocking_chan_resp_data  ( nullptr )
 {}
 
-template <unsigned Q, unsigned R, unsigned N>
-void DuetWidgetFunctorTmpl <Q, R, N>
+template <unsigned Q, unsigned R>
+void DuetWidgetFunctorTmpl <Q, R>
     ::enqueue_req_header (
-            const int &                                             stage
+            int                                                     stage
             , AbstractDuetWidgetFunctor::chan_req_header_t &        chan_req_header
             , const AbstractDuetWidgetFunctor::mem_req_header_t &   header
             )
 {
     // update our state
-    _stage      = stage;
-    _blocker    = BLOCKER_REQ_HEADER;
-
-    for ( _blocking_chan_id = 0; _blocking_chan_id < N; _blocking_chan_id++ )
-        if ( &_chan_req_header[_blocking_chan_id] == &chan_req_header )
-            break;
-
-    panic_if ( _blocking_chan_id >= N,
-            "chan_req_header is not in our array" );
+    _stage                      = stage;
+    _blocking_chan_req_header   = &chan_req_header;
+    _blocking_chan_req_data     = nullptr;
+    _blocking_chan_resp_data    = nullptr;
 
     // transfer control back to the main thread
     _cv.notify_one ();
@@ -37,23 +33,19 @@ void DuetWidgetFunctorTmpl <Q, R, N>
     chan_req_header.push_back ( header );
 }
 
-template <unsigned Q, unsigned R, unsigned N>
-void DuetWidgetFunctorTmpl <Q, R, N>
+template <unsigned Q, unsigned R>
+void DuetWidgetFunctorTmpl <Q, R>
     ::enqueue_req_data (
-            const int &                                     stage
+            int                                             stage
             , AbstractDuetWidgetFunctor::chan_req_data_t &  chan_req_data
             , const AbstractDuetWidgetFunctor::req_data_t & data
+            )
 {
     // update our state
-    _stage      = stage;
-    _blocker    = BLOCKER_REQ_DATA;
-
-    for ( _blocking_chan_id = 0; _blocking_chan_id < N; _blocking_chan_id++ )
-        if ( &_chan_req_data[_blocking_chan_id] == &chan_req_data )
-            break;
-
-    panic_if ( _blocking_chan_id >= N,
-            "chan_req_data is not in our array" );
+    _stage                      = stage;
+    _blocking_chan_req_header   = nullptr;
+    _blocking_chan_req_data     = &chan_req_data;
+    _blocking_chan_resp_data    = nullptr;
 
     // transfer control back to the main thread
     _cv.notify_one ();
@@ -66,24 +58,19 @@ void DuetWidgetFunctorTmpl <Q, R, N>
     chan_req_data.push_back ( data );
 }
 
-template <unsigned Q, unsigned R, unsigned N>
-void DuetWidgetFunctorTmpl <Q, R, N>
+template <unsigned Q, unsigned R>
+void DuetWidgetFunctorTmpl <Q, R>
     ::dequeue_resp_data (
-            const int &                                     stage
-            , AbstractDuetWidgetFunctor::chan_resp_data_t * chan_resp_data
+            int                                             stage
+            , AbstractDuetWidgetFunctor::chan_resp_data_t & chan_resp_data
             , AbstractDuetWidgetFunctor::resp_data_t &      data
             )
 {
     // update our state
     _stage      = stage;
-    _blocker    = BLOCKER_RESP_DATA;
-
-    for ( _blocking_chan_id = 0; _blocking_chan_id < N; _blocking_chan_id++ )
-        if ( &_chan_resp_data[_blocking_chan_id] == &chan_resp_data )
-            break;
-
-    panic_if ( _blocking_chan_id >= N,
-            "chan_resp_data is not in our array" );
+    _blocking_chan_req_header   = nullptr;
+    _blocking_chan_req_data     = nullptr;
+    _blocking_chan_resp_data    = &chan_resp_data;
 
     // transfer control back to the main thread
     _cv.notify_one ();
@@ -97,34 +84,52 @@ void DuetWidgetFunctorTmpl <Q, R, N>
     chan_resp_data.pop_front ();
 }
 
-template <unsigned Q, unsigned R, unsigned N>
-void DuetWidgetFunctorTmpl <Q, R, N>
-    ::invoke ( const uintptr_t & arg )
+template <unsigned Q, unsigned R>
+void DuetWidgetFunctorTmpl <Q, R>
+    ::invoke (
+              uintptr_t                                         arg
+            , AbstractDuetWidgetFunctor::chan_req_header_t *    chan_req_header
+            , AbstractDuetWidgetFunctor::chan_req_data_t *      chan_req_data
+            , AbstractDuetWidgetFunctor::chan_resp_data_t *     chan_resp_data
+            )
 {
-    _blocker    = BLOCKER_INV;
-    _finished   = false;
+    _stage                      = -1;
+    _retcode                    = RETCODE_RUNNING;
+    _blocking_chan_req_header   = nullptr;
+    _blocking_chan_req_data     = nullptr;
+    _blocking_chan_resp_data    = nullptr;
 
     // call kernel in a separate thread
-    std::thread kt ( [this, arg] {
+    std::thread kt ( [&] {
 
-            // call kernel
-            kernel ( arg, _chan_req_header, _chan_req_data, _chan_resp_data );
+                // call kernel
+                kernel (
+                        arg
+                        , chan_req_header
+                        , chan_req_data
+                        , chan_resp_data
+                        , &_retcode
+                        );
 
-            // set finished, then notify the main thread
-            _finished = true;
-            _cv.notify_one ();
+                if ( RETCODE_RUNNING == _retcode ) {
+                    _retcode = RETCODE_DEFAULT;
+                }
+
+                // notify the main thread
+                _cv.notify_one ();
             } );
+
+    // keep the thread handle
+    std::swap ( _thread, kt );
 
     // wait until the first stage is complete
     std::unique_lock lock ( _mutex );
     _cv.wait ( lock );
-
-    // keep the thread handle
-    std::swap ( _thread, kt );
 }
 
-template <unsigned Q, unsigned R, unsigned N>
-bool DuetWidgetFunctorTmpl <Q, R, N>
+template <unsigned Q, unsigned R>
+AbstractDuetWidgetFunctor::retcode_enum_t
+DuetWidgetFunctorTmpl <Q, R>
     ::advance ()
 {
     // transfer control to the execution thread
@@ -134,34 +139,34 @@ bool DuetWidgetFunctorTmpl <Q, R, N>
     std::unique_lock lock ( _mutex );
     _cv.wait ( lock );
 
-    if ( _finished ) {
+    if ( RETCODE_RUNNING != _retcode ) {
         _thread.join ();
-        return true;
+        return _retcode;
     } else {
-        return false;
+        return RETCODE_RUNNING;
     }
 }
 
-template <unsigned Q, unsigned R, unsigned N>
-AbstractDuetWidgetFunctor::chan_req_header_t &
-DuetWidgetFunctorTmpl <Q, R, N>
-    ::get_blocking_chan_req_header ()
+template <unsigned Q, unsigned R>
+AbstractDuetWidgetFunctor::chan_req_header_t *
+DuetWidgetFunctorTmpl <Q, R>
+    ::get_blocking_chan_req_header () const
 {
-    return _chan_req_header[_blocking_chan_id];
+    return _blocking_chan_req_header;
 }
 
-template <unsigned Q, unsigned R, unsigned N>
-AbstractDuetWidgetFunctor::chan_req_data_t &
-DuetWidgetFunctorTmpl <Q, R, N>
-    ::get_blocking_chan_req_data ()
+template <unsigned Q, unsigned R>
+AbstractDuetWidgetFunctor::chan_req_data_t *
+DuetWidgetFunctorTmpl <Q, R>
+    ::get_blocking_chan_req_data () const
 {
-    return _chan_req_data[_blocking_chan_id];
+    return _blocking_chan_req_data;
 }
 
-template <unsigned Q, unsigned R, unsigned N>
-AbstractDuetWidgetFunctor::chan_resp_data_t &
-DuetWidgetFunctorTmpl <Q, R, N>
-    ::get_blocking_chan_resp_data ()
+template <unsigned Q, unsigned R>
+AbstractDuetWidgetFunctor::chan_resp_data_t *
+DuetWidgetFunctorTmpl <Q, R>
+    ::get_blocking_chan_resp_data () const
 {
-    return _chan_resp_data[_blocking_chan_id];
+    return _blocking_chan_resp_data;
 }

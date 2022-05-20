@@ -103,6 +103,9 @@ class Cycles
     /** In-place addition of cycles. */
     Cycles& operator+=(const Cycles& cc) { c += cc.c; return *this; }
 
+    /** Assignment operator */
+    Cycles& operator=(const Cycles& cc) { c = cc.c; return *this; }
+
     /** Greater than comparison used for > Cycles(0). */
     constexpr bool
     operator>(const Cycles& cc) const

@@ -7,6 +7,7 @@ class DuetWidgetManager (ClockedObject):
     cxx_class   = "gem5::duet::DuetWidgetManager"
     cxx_header  = "duet/DuetWidgetManager.hh"
 
+    system          = Param.System ( Parent.any, "System object" )
     fifo_capacity   = Param.Unsigned ( 64, "Capacity of internal FIFOs" )
     range           = Param.AddrRange ("Register addresses")
     sri_port        = ResponsePort ("SRI response port")

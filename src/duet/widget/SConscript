@@ -1,0 +1,6 @@
+Import('*')
+
+SimObject('widget.py', sim_objects=['DuetWidget', 'DuetWidgetNaive'])
+
+Source('widget.cc')
+Source('naive.cc')

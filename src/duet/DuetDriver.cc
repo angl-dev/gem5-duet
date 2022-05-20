@@ -1,5 +1,5 @@
 #include "duet/DuetDriver.hh"
-#include "duet/DuetSRIFE.hh"
+#include "duet/widget/widget.hh"
 #include "arch/riscv/page_size.hh"
 #include "debug/DuetDriver.hh"
 #include "cpu/thread_context.hh"

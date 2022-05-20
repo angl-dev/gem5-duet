@@ -70,11 +70,13 @@ DuetWidgetManager::DuetWidgetManager (
         const DuetWidgetManagerParams & p
         )
     : ClockedObject                     ( p )
+    , _system                           ( p.system )
     , _fifo_capacity                    ( p.fifo_capacity )
     , _range                            ( p.range )
     , _sri_port                         ( p.name + ".sri_port", this )
     , _mem_port                         ( p.name + ".mem_port", this )
     , _widget                           ( p.widget )
+    , _requestorId                      ( p.system->getRequestorId(this) )
     , _latest_cycle_plus1               ( 0 )
     , _is_sleeping                      ( true )
     , _e_do_cycle                       ( [this]{ _do_cycle(); }, name() )
