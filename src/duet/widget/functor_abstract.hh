@@ -45,8 +45,8 @@ public:
         uintptr_t       addr;
     } mem_req_header_t;
 
-    typedef std::shared_ptr <uint8_t>       resp_data_t;
-    typedef std::shared_ptr <uint8_t>       req_data_t;
+    typedef std::shared_ptr <uint8_t[]>     resp_data_t;
+    typedef std::shared_ptr <uint8_t[]>     req_data_t;
 
     typedef std::list <mem_req_header_t>    chan_req_header_t;
     typedef std::list <req_data_t>          chan_req_data_t;

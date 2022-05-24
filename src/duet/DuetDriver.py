@@ -6,4 +6,4 @@ class DuetDriver (EmulatedDriver):
     cxx_class = "gem5::duet::DuetDriver"
     cxx_header = "duet/DuetDriver.hh"
 
-    dev = Param.DuetWidget ("Underlying widget")
+    range = Param.AddrRange ( "Managed address range" )

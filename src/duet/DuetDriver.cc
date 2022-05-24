@@ -73,13 +73,13 @@ Addr DuetDriver::mmap(ThreadContext *tc, Addr start, uint64_t length,
 
     DPRINTF (DuetDriver, "mmap(%s) (offset: 0x%x, length: 0x%x)\n",
             filename, offset, length);
-    panic_if ( offset + length > _dev->_range.size(),
+    panic_if ( offset + length > _range.size(),
             "Requested mapping [0x%x +: 0x%x] exceeds alloted range %s",
-            offset, length, _dev->_range.to_string() );
+            offset, length, _range.to_string() );
     start = mem_state->extendMmap (length);
 
     // Note: In fact, "Uncacheable" flag does not have any effect
-    process->pTable->map(start, _dev->_range.start() + offset, length,
+    process->pTable->map(start, _range.start() + offset, length,
             EmulationPageTable::Uncacheable);
 
     return start;

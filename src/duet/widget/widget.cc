@@ -156,29 +156,30 @@ Cycles DuetWidget::_get_interval ( int stage ) const {
 bool DuetWidget::_move_to_stage ( DuetWidget::Execution & e ) {
     auto stage = e.functor->get_stage ();
 
-    if ( stage >= _exec_list_per_stage.size() ) {
-        _exec_list_per_stage.resize (stage + 1);
+    // create the list for the stage if absent
+    for ( auto i = _exec_list_per_stage.size(); i <= stage; ++i ) {
+        _exec_list_per_stage.emplace_back ( new std::list <Execution>() );
     }
 
     auto latency = _get_latency (stage);
-    auto & exec_list = _exec_list_per_stage [stage];
+    auto exec_list = _exec_list_per_stage [stage].get();
 
-    if ( !exec_list.empty() ) {
+    if ( !exec_list->empty() ) {
         Cycles interval = _get_interval ( stage );
 
         if ( interval == 0 )
             // does not allow multi-entry
             return false;
 
-        const auto & last = exec_list.back ();
+        const auto & last = exec_list->back ();
         if ( latency - interval < last.remaining )
             // cannot start due to initiation interval
             return false;
     }
 
     // can move
-    exec_list.emplace_back ( e.caller, latency );
-    std::swap ( e.functor, exec_list.back().functor );
+    exec_list->emplace_back ( e.caller, latency );
+    std::swap ( e.functor, exec_list->back().functor );
     return true;
 }
 
@@ -211,17 +212,23 @@ void DuetWidget::_do_cycle () {
     // 3. advance as many execution as possible
     _advance ();
 
-    // 4. if memory response buffer contains a valid response, see if we can
+    // 4. if memory response buffer contains a valid load response, see if we can
     //      consume it and push into the response channel
     if ( nullptr != _mem_port._resp_buf ) {
         auto pkt = _mem_port._resp_buf;
-        auto chan_id = pkt->req->getFlags() & Request::ARCH_BITS;
 
-        if ( _chan_resp_data[chan_id].size () < _fifo_capacity ) {
-            AbstractDuetWidgetFunctor::resp_data_t data (
-                    new uint8_t[pkt->getSize ()] );
-            std::memcpy ( pkt->getPtr<uint8_t>(), data.get(), pkt->getSize() );
-            _chan_resp_data[chan_id].push_back ( data );
+        if ( pkt->isRead() ) {
+            auto chan_id = pkt->req->getFlags() & Request::ARCH_BITS;
+
+            if ( _chan_resp_data[chan_id].size () < _fifo_capacity ) {
+                AbstractDuetWidgetFunctor::resp_data_t data (
+                        new uint8_t[pkt->getSize ()] );
+                std::memcpy ( data.get(), pkt->getPtr<uint8_t>(), pkt->getSize() );
+                _chan_resp_data[chan_id].push_back ( data );
+                _mem_port._resp_buf = nullptr;
+                delete pkt;
+            }
+        } else {
             _mem_port._resp_buf = nullptr;
             delete pkt;
         }
@@ -297,7 +304,7 @@ PacketPtr DuetWidget::_pop_mem_req () {
 
             // translate address 
             Addr paddr;
-            panic_if ( _process->pTable->translate ( header.addr, paddr ),
+            panic_if ( !_process->pTable->translate ( header.addr, paddr ),
                     "Memory translation failed" );
 
             // make a new request
@@ -313,6 +320,7 @@ PacketPtr DuetWidget::_pop_mem_req () {
             switch ( header.type ) {
             case AbstractDuetWidgetFunctor::REQTYPE_LD :
                 pkt = new Packet ( req, Packet::makeReadCmd ( req ) );
+                pkt->allocate ();
                 break;
 
             case AbstractDuetWidgetFunctor::REQTYPE_ST :
@@ -365,11 +373,11 @@ void DuetWidget::_advance () {
             stage >= 0;
             --stage )
     {
-        auto & exec_list = _exec_list_per_stage [stage];
+        auto exec_list = _exec_list_per_stage [stage].get();
 
         // iterate through each execution in a stage in normal order
-        for ( auto exec = exec_list.begin ();
-                exec != exec_list.end ();
+        for ( auto exec = exec_list->begin ();
+                exec != exec_list->end ();
                 // no auto increment since we may modify the list while iterating
             )
         {
@@ -377,7 +385,7 @@ void DuetWidget::_advance () {
             if ( exec->remaining == Cycles (0) ) {
                 //  stage + 1 was full when this execution was ready to advance
                 if ( _move_to_stage ( *exec ) ) {
-                    exec = exec_list.erase ( exec );
+                    exec = exec_list->erase ( exec );
                     continue;
                 } else {
                     return;     // stall. end of iteration
@@ -391,52 +399,52 @@ void DuetWidget::_advance () {
                 continue;
             }
 
+            // time to advance kernel
             auto & functor = exec->functor;
 
-            // time to advance kernel
-            // check FIFO capacity
-            size_t fifo_usage;
-
+            // check if we can advance
             if ( nullptr != functor->get_blocking_chan_req_header () ) {
-                fifo_usage = functor->get_blocking_chan_req_header()->size();
-            } else if ( nullptr != functor->get_blocking_chan_req_data () ) {
-                fifo_usage = functor->get_blocking_chan_req_data()->size();
-            } else if ( nullptr != functor->get_blocking_chan_resp_data () ) {
-                fifo_usage = functor->get_blocking_chan_resp_data()->size();
-            } else {
-                panic ( "Execution is not blocked by anything" );
-            }
-
-            // see if the FIFO can take the request
-            if ( fifo_usage >= _fifo_capacity ) {
-                // no. stall and return
-                return;
-
-            } else {
-                // yes. advance
-                auto retcode = functor->advance ();
-
-                switch ( retcode ) {
-                case AbstractDuetWidgetFunctor::RETCODE_RUNNING :
-                    // not finished
-                    // move the execution to the correct (next) stage
-                    panic_if ( functor->get_stage () != stage + 1,
-                            "Pipeline jumped from stage %d to %d",
-                            stage, functor->get_stage () );
-
-                    if ( !_move_to_stage ( *exec ) )
-                        // cannot forward. stall
-                        return;
-                    else
-                        break;
-
-                default:
-                    // RETCODE FIFOs should always have enough space
-                    _retcode_fifo_vec[exec->caller].push_back ( retcode );
+                if ( functor->get_blocking_chan_req_header()->size() >= _fifo_capacity ) {
+                    // no. stall and return
+                    return;
                 }
-
-                exec = exec_list.erase ( exec );
+            } else if ( nullptr != functor->get_blocking_chan_req_data () ) {
+                if ( functor->get_blocking_chan_req_data()->size() >= _fifo_capacity ) {
+                    // no. stall and return
+                    return;
+                }
+            } else if ( nullptr != functor->get_blocking_chan_resp_data () ) {
+                if ( functor->get_blocking_chan_resp_data()->empty() ) {
+                    // no. stall and return
+                    return;
+                }
+            } else {
+                panic ( "Execution is not blocked by any channel" );
             }
+
+            // advance
+            auto retcode = functor->advance ();
+
+            switch ( retcode ) {
+            case AbstractDuetWidgetFunctor::RETCODE_RUNNING :
+                // not finished
+                // move the execution to the correct (next) stage
+                panic_if ( functor->get_stage () != stage + 1,
+                        "Pipeline jumped from stage %d to %d",
+                        stage, functor->get_stage () );
+
+                if ( !_move_to_stage ( *exec ) )
+                    // cannot forward. stall
+                    return;
+                else
+                    break;
+
+            default:
+                // RETCODE FIFOs should always have enough space
+                _retcode_fifo_vec[exec->caller].push_back ( retcode );
+            }
+
+            exec = exec_list->erase ( exec );
         }
     }
 }
@@ -487,7 +495,7 @@ bool DuetWidget::_has_work () const {
         return true;
 
     for ( const auto & exec_list : _exec_list_per_stage ) {
-        if ( !exec_list.empty () )
+        if ( !exec_list->empty () )
             return true;
     }
 

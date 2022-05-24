@@ -1,7 +1,10 @@
 #ifndef __DUET_ASYNC_FIFO_CTRL_HH
 #define __DUET_ASYNC_FIFO_CTRL_HH
 
+#include <map>
+
 #include "params/DuetAsyncFIFOCtrl.hh"
+#include "sim/eventq.hh"
 #include "sim/clocked_object.hh"
 #include "mem/packet.hh"
 
@@ -14,6 +17,29 @@ private:
 
     // befriend my intended parent class
     friend class DuetAsyncFIFO;
+
+    // custom events
+    class SyncEvent : public Event {
+    private:
+        DuetAsyncFIFOCtrl * _ctrl;
+        bool                _is_rptr;
+        unsigned            _incr;
+
+    public:
+        SyncEvent (
+                DuetAsyncFIFOCtrl * ctrl
+                , bool              is_rptr
+                , unsigned          incr = 1
+                )
+            : Event     ( Default_Pri, AutoDelete )
+            , _ctrl     ( ctrl )
+            , _is_rptr  ( is_rptr )
+            , _incr     ( incr )
+        {}
+
+        void process () override;
+        void incr ();
+    };
 
     bool            _is_upstream;
     DuetAsyncFIFO * _owner;
@@ -29,16 +55,16 @@ private:
     bool            _is_this_waiting_for_retry;
     Cycles          _can_send_pkt_on_and_after_cycle;
 
-    EventFunctionWrapper    _e_try_try_send;
-
-public:
-    EventFunctionWrapper    e_sync_rptr;
-    EventFunctionWrapper    e_sync_wptr;
+    EventFunctionWrapper            _e_try_try_send;
+    std::map <Tick, SyncEvent *>    _rsync_events;
+    std::map <Tick, SyncEvent *>    _wsync_events;
 
 private:
-    void _sync_rptr ();
-    void _sync_wptr ();
+    void _sync_rptr ( unsigned incr );
+    void _sync_wptr ( unsigned incr );
     void _try_try_send ();  // before we know if we are waiting for retry
+    void _schedule_incr_rptr ( Tick t );
+    void _schedule_incr_wptr ( Tick T );
 
 public:
     DuetAsyncFIFOCtrl ( const DuetAsyncFIFOCtrlParams & p );

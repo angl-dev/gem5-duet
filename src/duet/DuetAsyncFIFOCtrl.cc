@@ -6,11 +6,27 @@
 namespace gem5 {
 namespace duet {
 
-void DuetAsyncFIFOCtrl::_sync_rptr () {
+void DuetAsyncFIFOCtrl::SyncEvent::process () {
+    if ( _is_rptr )
+        _ctrl->_sync_rptr ( _incr );
+    else
+        _ctrl->_sync_wptr ( _incr );
+}
+
+void DuetAsyncFIFOCtrl::SyncEvent::incr () {
+    _incr += 1;
+
+    panic_if ( _incr > _ctrl->_owner->_capacity,
+            "DuetAsyncFIFOCtrl (%s) %s incr > FIFO capacity",
+            _ctrl->name(), _is_rptr ? "rptr" : "wptr" );
+}
+
+void DuetAsyncFIFOCtrl::_sync_rptr ( unsigned incr ) {
     panic_if ( nullptr == _owner, "DuetAsyncFIFOCtrl (%s) has no owner", name() );
+    _rsync_events.erase ( curTick() );
 
     auto & ptr = _is_upstream ? _downward_rptr : _upward_rptr;
-    const auto next = (ptr + 1) % (_owner->_capacity << 1);
+    const auto next = (ptr + incr) % (_owner->_capacity << 1);
 
     DPRINTF ( DuetAsyncFIFO, "DuetAsyncFIFO (%s) %s rptr %u->%u\n",
             _owner->name(),
@@ -38,11 +54,12 @@ void DuetAsyncFIFOCtrl::_sync_rptr () {
     }
 }
 
-void DuetAsyncFIFOCtrl::_sync_wptr () {
+void DuetAsyncFIFOCtrl::_sync_wptr ( unsigned incr ) {
     panic_if ( nullptr == _owner, "DuetAsyncFIFOCtrl (%s) has no owner", name() );
+    _wsync_events.erase ( curTick() );
 
     auto & ptr = _is_upstream ? _upward_wptr : _downward_wptr;
-    const auto next = (ptr + 1) % (_owner->_capacity << 1);
+    const auto next = (ptr + incr) % (_owner->_capacity << 1);
 
     DPRINTF ( DuetAsyncFIFO, "DuetAsyncFIFO (%s) %s wptr %u->%u\n",
             _owner->name(),
@@ -89,6 +106,28 @@ void DuetAsyncFIFOCtrl::_try_try_send () {
     try_send ();
 }
 
+void DuetAsyncFIFOCtrl::_schedule_incr_rptr ( Tick t ) {
+    auto it = _rsync_events.find ( t );
+    if ( _rsync_events.end() == it ) {
+        auto event = new SyncEvent ( this, true );
+        schedule ( event, t );
+        _rsync_events.emplace ( t, event );
+    } else {
+        it->second->incr ();
+    }
+}
+
+void DuetAsyncFIFOCtrl::_schedule_incr_wptr ( Tick t ) {
+    auto it = _wsync_events.find ( t );
+    if ( _wsync_events.end() == it ) {
+        auto event = new SyncEvent ( this, false );
+        schedule ( event, t );
+        _wsync_events.emplace ( t, event );
+    } else {
+        it->second->incr ();
+    }
+}
+
 DuetAsyncFIFOCtrl::DuetAsyncFIFOCtrl ( const DuetAsyncFIFOCtrlParams & p )
     : ClockedObject ( p )
     , _is_upstream ( p.is_upstream )
@@ -102,8 +141,6 @@ DuetAsyncFIFOCtrl::DuetAsyncFIFOCtrl ( const DuetAsyncFIFOCtrlParams & p )
     , _is_this_waiting_for_retry ( false )
     , _can_send_pkt_on_and_after_cycle ( 0 )
     , _e_try_try_send ( [this]{ _try_try_send(); }, name() )
-    , e_sync_rptr ( [this]{ _sync_rptr(); }, name() )
-    , e_sync_wptr ( [this]{ _sync_wptr(); }, name() )
 {}
 
 bool DuetAsyncFIFOCtrl::recv (
@@ -159,10 +196,7 @@ bool DuetAsyncFIFOCtrl::recv (
 
     // 3.3 sync wptr to the other side of the FIFO
     auto other = _is_upstream ? _owner->_downstream_ctrl : _owner->_upstream_ctrl;
-    other->schedule (
-            other->e_sync_wptr,
-            other->clockEdge ( Cycles( _owner->_stage + 1 ) )
-            );
+    other->_schedule_incr_wptr ( other->clockEdge ( Cycles( _owner->_stage + 1 ) ) );
 
     return true;
 }
@@ -220,10 +254,7 @@ void DuetAsyncFIFOCtrl::try_send () {
 
         // 2B.3 sync rptr to the other side of the FIFO
         auto other = _is_upstream ? _owner->_downstream_ctrl : _owner->_upstream_ctrl;
-        other->schedule (
-                other->e_sync_rptr,
-                other->clockEdge ( Cycles( _owner->_stage + 1 ) )
-                );
+        other->_schedule_incr_rptr ( other->clockEdge ( Cycles( _owner->_stage + 1 ) ) );
     }
 }
 

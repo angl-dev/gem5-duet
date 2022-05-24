@@ -27,3 +27,5 @@ class DuetWidgetNaive (DuetWidget):
     type        = "DuetWidgetNaive"
     cxx_class   = "gem5::duet::DuetWidgetNaive"
     cxx_header  = "duet/widget/naive.hh"
+
+    abstract            = False

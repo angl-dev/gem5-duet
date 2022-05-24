@@ -6,7 +6,13 @@ DuetWidgetFunctorTmpl <Q, R>
         , _blocking_chan_req_header ( nullptr )
         , _blocking_chan_req_data   ( nullptr )
         , _blocking_chan_resp_data  ( nullptr )
-{}
+{
+    std::unique_lock main_lock ( _mutex, std::defer_lock );
+    std::swap ( _main_lock, main_lock );
+
+    std::unique_lock thread_lock ( _mutex, std::defer_lock );
+    std::swap ( _thread_lock, thread_lock );
+}
 
 template <unsigned Q, unsigned R>
 void DuetWidgetFunctorTmpl <Q, R>
@@ -23,11 +29,13 @@ void DuetWidgetFunctorTmpl <Q, R>
     _blocking_chan_resp_data    = nullptr;
 
     // transfer control back to the main thread
+    _is_threads_turn = false;
+    _thread_lock.unlock ();
     _cv.notify_one ();
 
     // wait until the main thread let us resume
-    std::unique_lock lock ( _mutex );
-    _cv.wait ( lock );
+    _thread_lock.lock ();
+    _cv.wait ( _thread_lock, [&]{ return _is_threads_turn; } );
 
     // resume execution
     chan_req_header.push_back ( header );
@@ -48,11 +56,13 @@ void DuetWidgetFunctorTmpl <Q, R>
     _blocking_chan_resp_data    = nullptr;
 
     // transfer control back to the main thread
+    _is_threads_turn = false;
+    _thread_lock.unlock ();
     _cv.notify_one ();
 
     // wait until the main thread let us resume
-    std::unique_lock lock ( _mutex );
-    _cv.wait ( lock );
+    _thread_lock.lock ();
+    _cv.wait ( _thread_lock, [&]{ return _is_threads_turn; } );
 
     // resume execution
     chan_req_data.push_back ( data );
@@ -73,11 +83,13 @@ void DuetWidgetFunctorTmpl <Q, R>
     _blocking_chan_resp_data    = &chan_resp_data;
 
     // transfer control back to the main thread
+    _is_threads_turn = false;
+    _thread_lock.unlock ();
     _cv.notify_one ();
 
     // wait until the main thread let us resume
-    std::unique_lock lock ( _mutex );
-    _cv.wait ( lock );
+    _thread_lock.lock ();
+    _cv.wait ( _thread_lock, [&]{ return _is_threads_turn; } );
 
     // resume execution
     data = chan_resp_data.front ();
@@ -93,38 +105,51 @@ void DuetWidgetFunctorTmpl <Q, R>
             , AbstractDuetWidgetFunctor::chan_resp_data_t *     chan_resp_data
             )
 {
+    // initialize member variables
+    _main_lock.lock ();
     _stage                      = -1;
     _retcode                    = RETCODE_RUNNING;
     _blocking_chan_req_header   = nullptr;
     _blocking_chan_req_data     = nullptr;
     _blocking_chan_resp_data    = nullptr;
+    _is_threads_turn            = false;
 
     // call kernel in a separate thread
     std::thread kt ( [&] {
+            // wait until awaken by the main thread
+            _thread_lock.lock ();
+            _cv.wait ( _thread_lock, [&]{ return _is_threads_turn; } );
 
-                // call kernel
-                kernel (
-                        arg
-                        , chan_req_header
-                        , chan_req_data
-                        , chan_resp_data
-                        , &_retcode
-                        );
+            // call kernel
+            kernel (
+                    arg
+                    , chan_req_header
+                    , chan_req_data
+                    , chan_resp_data
+                    , &_retcode
+                   );
 
-                if ( RETCODE_RUNNING == _retcode ) {
-                    _retcode = RETCODE_DEFAULT;
-                }
+            if ( RETCODE_RUNNING == _retcode ) {
+            _retcode = RETCODE_DEFAULT;
+            }
 
-                // notify the main thread
-                _cv.notify_one ();
+            // notify the main thread
+            _is_threads_turn = false;
+            _thread_lock.unlock ();
+            _cv.notify_one ();
             } );
 
     // keep the thread handle
     std::swap ( _thread, kt );
 
+    // wake up the thread
+    _is_threads_turn = true;
+    _main_lock.unlock ();
+    _cv.notify_one ();
+
     // wait until the first stage is complete
-    std::unique_lock lock ( _mutex );
-    _cv.wait ( lock );
+    _main_lock.lock ();
+    _cv.wait ( _main_lock, [&]{ return !_is_threads_turn; } );
 }
 
 template <unsigned Q, unsigned R>
@@ -133,11 +158,13 @@ DuetWidgetFunctorTmpl <Q, R>
     ::advance ()
 {
     // transfer control to the execution thread
+    _is_threads_turn = true;
+    _main_lock.unlock ();
     _cv.notify_one ();
 
     // wait until the execution thread let us resume
-    std::unique_lock lock ( _mutex );
-    _cv.wait ( lock );
+    _main_lock.lock ();
+    _cv.wait ( _main_lock, [&]{ return !_is_threads_turn; } );
 
     if ( RETCODE_RUNNING != _retcode ) {
         _thread.join ();

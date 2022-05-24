@@ -186,7 +186,7 @@ private:
     std::unique_ptr <AbstractDuetWidgetFunctor::chan_req_header_t[]> _chan_req_header;
     std::unique_ptr <AbstractDuetWidgetFunctor::chan_req_data_t[]>   _chan_req_data;
     std::unique_ptr <AbstractDuetWidgetFunctor::chan_resp_data_t[]>  _chan_resp_data;
-    std::vector <std::list <Execution>> _exec_list_per_stage;
+    std::vector <std::unique_ptr< std::list <Execution>>> _exec_list_per_stage;
 
 private:
     Cycles _get_latency  ( int stage ) const;
@@ -200,7 +200,7 @@ private:
 
     // do our stuff in this cycle
     void _do_cycle ();
-    bool _is_pre_do_cycle () const { return curTick() >= _latest_cycle_plus1; }
+    bool _is_pre_do_cycle () const { return curCycle() >= _latest_cycle_plus1; }
 
     // components of (and may be called by the ports) `_do_cycle`
     tid_t _get_tid_from_addr ( Addr addr ) const;

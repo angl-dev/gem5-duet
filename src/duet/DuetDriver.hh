@@ -14,12 +14,12 @@ class DuetWidget;
 class DuetDriver : public EmulatedDriver
 {
 private:
-    DuetWidget * _dev;
+    AddrRange   _range;
 
 public:
     DuetDriver (const DuetDriverParams& p)
         : EmulatedDriver    ( p )
-        , _dev              ( p.dev )
+        , _range            ( p.range )
     {
     }
 

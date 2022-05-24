@@ -110,9 +110,12 @@ private:
     chan_req_data_t *       _blocking_chan_req_data;
     chan_resp_data_t *      _blocking_chan_resp_data;
 
-    std::mutex              _mutex;
-    std::condition_variable _cv;
-    std::thread             _thread;
+    std::mutex                      _mutex;
+    std::unique_lock <std::mutex>   _main_lock;
+    std::unique_lock <std::mutex>   _thread_lock;
+    std::condition_variable         _cv;
+    std::thread                     _thread;
+    bool                            _is_threads_turn;
 
 public:
     DuetWidgetFunctorTmpl ();
