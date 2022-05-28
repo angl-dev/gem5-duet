@@ -19,8 +19,6 @@ class Process;
 
 namespace duet {
 
-class DuetDriver;
-
 /*
  * Each implemented functor must subclass this class.
  *
@@ -55,8 +53,6 @@ class DuetWidget : public ClockedObject {
 // == Type Definitions =======================================================
 // ===========================================================================
 private:
-
-    friend class DuetDriver;
 
     typedef uint32_t        tid_t;
 

@@ -22,9 +22,10 @@ system.mem_ctrl = MemCtrl(
         )
 system.naive = DuetWidgetNaive (
         range = nc_range,
-        latency_per_stage = [10, 10, 10, 10],
+        latency_per_stage = [1, 1, 1, 1],
         interval_per_stage = [1, 1, 1, 1],
         )
+system.pipeline = DuetPipeline ( upward_latency = 4, downward_latency = 4 )
 system.membus = SystemXBar()
 afifo = DuetAsyncFIFO(
         stage = 10,
@@ -43,7 +44,8 @@ system.system_port              = system.membus.cpu_side_ports
 system.afifo.upstream_port      = system.membus.mem_side_ports
 system.afifo.downstream_port    = system.mem_ctrl.port
 system.naive.sri_port           = system.membus.mem_side_ports
-system.naive.mem_port           = system.membus.cpu_side_ports
+system.naive.mem_port           = system.pipeline.upstream
+system.pipeline.downstream      = system.membus.cpu_side_ports
 
 binary = os.path.join (os.path.dirname (os.path.abspath(__file__)),
         "../../tests/test-progs/duet/bin/riscv/linux/test_naive")

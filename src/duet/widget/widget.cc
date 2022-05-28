@@ -459,17 +459,19 @@ bool DuetWidget::_invoke () {
                 "_new_functor returned nullptr" );
 
         Execution e ( caller, _get_latency (0), functor );
-        functor->invoke (
-                arg
-                , _chan_req_header.get ()
-                , _chan_req_data.get ()
-                , _chan_resp_data.get ()
-                );
 
-        return _move_to_stage ( e );
-    } else {
-        return false;
+        if ( _move_to_stage ( e ) ) {
+            functor->invoke (
+                    arg
+                    , _chan_req_header.get ()
+                    , _chan_req_data.get ()
+                    , _chan_resp_data.get ()
+                    );
+            return true;
+        }
     }
+
+    return false;
 }
 
 void DuetWidget::_wakeup () {
