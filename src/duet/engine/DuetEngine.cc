@@ -19,7 +19,9 @@ DuetEngine::DuetEngine ( const DuetEngineParams & p )
     , _system                   ( p.system )
     , _process                  ( p.process )
     , _fifo_capacity            ( p.fifo_capacity )
+    , _num_callers              ( p.num_callers )
     , _baseaddr                 ( p.baseaddr )
+    , _lanes                    ( p.lanes )
     , _sri_port                 ( p.name + ".sri_port", this )
 {
     _requestorId = p.system->getRequestorId (this);
@@ -83,7 +85,7 @@ void DuetEngine::_process () {
         if ( nullptr != pkt ) {
 
             if ( pkt->isRead () ) {
-                uint32_t chan_id = pkt->req->getFlags() & Request::ARCH_BITS;
+                uint16_t chan_id = pkt->req->getFlags() & Request::ARCH_BITS;
                 DuetFunctor::raw_data_t data (
                         new uint8_t[ pkt->getSize() ]);
                 std::memcpy ( data.get(), pkt->getPtr<uint8_t>(), pkt->getSize() );
@@ -153,7 +155,8 @@ DuetFunctor::chan_req_t & DuetEngine::get_chan_req (
         , DuetFunctor::chan_id_t    chan_id
         )
 {
-    return *( _chan_req_by_id [std::make_pair ( caller_id, chan_id )] );
+    assert ( DuetFunctor::chan_id_t::REQ == chan_id.tag );
+    return *( _chan_req_by_id [chan_id.id] );
 }
 
 DuetFunctor::chan_data_t & DuetEngine::get_chan_data (
@@ -161,7 +164,26 @@ DuetFunctor::chan_data_t & DuetEngine::get_chan_data (
         , DuetFunctor::chan_id_t    chan_id
         )
 {
-    return *( _chan_data_by_id [std::make_pair ( caller_id, chan_id )] );
+    switch ( chan_id.tag ) {
+    case DuetFunctor::chan_id_t::WDATA:
+        return *( _chan_wdata_by_id [chan_id.id] );
+
+    case DuetFunctor::chan_id_t::RDATA:
+        return *( _chan_rdata_by_id [chan_id.id] );
+
+    case DuetFunctor::chan_id_t::ARG:
+        return *( _chan_arg_by_id [chan_id.id] );
+
+    case DuetFunctor::chan_id_t::RET:
+        return *( _chan_ret_by_id [chan_id.id] );
+
+    case DuetFunctor::chan_id_t::PULL:
+    case DuetFunctor::chan_id_t::PUSH:
+        return *( _chan_int_by_id [chan_id.id] );
+
+    default:
+        panic ( "Invalid data channel tag" );
+    }
 }
 
 bool DuetEngine::can_push_to_chan (
@@ -172,14 +194,28 @@ bool DuetEngine::can_push_to_chan (
     switch ( chan_id.tag ) {
     case DuetFunctor::chan_id_t::REQ:
         return (0 == _fifo_capacity
-                || _chan_req_by_id [std::make_pair ( caller_id, chan_id.id )]->size() < _fifo_capacity);
+                || _chan_req_by_id [chan_id.id]->size() < _fifo_capacity);
 
-    case DuetFunctor::chan_id_t::OUTPUT:
+    case DuetFunctor::chan_id_t::WDATA:
         return (0 == _fifo_capacity
-                || _chan_data_by_id [std::make_pair ( caller_id, chan_id.id )]->size() < _fifo_capacity);
+                || _chan_wdata_by_id [chan_id.id]->size() < _fifo_capacity);
 
-    case DuetFunctor::chan_id_t::INPUT:
-        panic ( "Trying to push to an input channel" );
+    case DuetFunctor::chan_id_t::RDATA:
+        panic ( "Trying to push to RDATA channel" );
+
+    case DuetFunctor::chan_id_t::ARG:
+        panic ( "Trying to push to ARG channel" );
+
+    case DuetFunctor::chan_id_t::RET:
+        return (0 == _fifo_capacity
+                || _chan_wdata_by_id [chan_id.id]->size() < _fifo_capacity);
+
+    case DuetFunctor::chan_id_t::PULL:
+        panic ( "Trying to push to PULL channel" );
+
+    case DuetFunctor::chan_id_t::PUSH:
+        return (0 == _fifo_capacity
+                || _chan_int_by_id [chan_id.id]->size() < _fifo_capacity);
 
     default:
         panic ( "Invalid channel tag" );
@@ -194,14 +230,26 @@ bool DuetEngine::can_pull_from_chan (
         )
 {
     switch ( chan_id.tag ) {
-    case DuetFunctor::chan_id_t::INPUT:
-        return !_chan_data_by_id [std::make_pair ( caller_id, chan_id.id )].empty ();
-
-    case DuetFunctor::chan_id_t::OUTPUT:
-        panic ( "Trying to pull from an output channel" );
-
     case DuetFunctor::chan_id_t::REQ:
-        panic ( "Trying to pull from a memory request channel" );
+        panic ( "Trying to pull from REQ channel" );
+
+    case DuetFunctor::chan_id_t::WDATA:
+        panic ( "Trying to pull from WDATA channel" );
+
+    case DuetFunctor::chan_id_t::RDATA:
+        return !_chan_rdata_by_id [chan_id.id]->empty ();
+
+    case DuetFunctor::chan_id_t::ARG:
+        return !_chan_arg_by_id [chan_id.id]->empty ();
+
+    case DuetFunctor::chan_id_t::RET:
+        panic ( "Trying to pull from RET channel" );
+
+    case DuetFunctor::chan_id_t::PULL:
+        return !_chan_int_by_id [chan_id.id]->empty ();
+
+    case DuetFunctor::chan_id_t::PUSH:
+        panic ( "Trying to pull from PUSH channel" );
 
     default:
         panic ( "Invalid channel tag" );
@@ -211,7 +259,7 @@ bool DuetEngine::can_pull_from_chan (
 }
 
 bool DuetEngine::_try_send_mem_req_one (
-        uint32_t                    chan_id
+        uint16_t                    chan_id
         , DuetFunctor::mem_req_t    req
         , DuetFunctor::raw_data_t   data
         )
@@ -225,9 +273,9 @@ bool DuetEngine::_try_send_mem_req_one (
                     "Memory translation failed" );
 
             // make a new request
-            RequestPtr req = std::make_shared <Request> (
+            RequestPtr req_ = std::make_shared <Request> (
                     paddr,
-                    1 << req.size_lg2,
+                    req.size,
                     (Request::FlagsType) chan_id,
                     _requestorId
                     );
@@ -236,12 +284,12 @@ bool DuetEngine::_try_send_mem_req_one (
             PacketPtr pkt = nullptr;
             switch ( req.type ) {
             case DuetFunctor::REQTYPE_LD :
-                pkt = new Packet ( req, Packet::makeReadCmd ( req ) );
+                pkt = new Packet ( req_, Packet::makeReadCmd ( req_ ) );
                 pkt->allocate ();
                 break;
 
             case DuetFunctor::REQTYPE_ST :
-                pkt = new Packet ( req, Packet::makeWriteCmd ( req ) );
+                pkt = new Packet ( req_, Packet::makeWriteCmd ( req_ ) );
                 pkt->allocate ();
                 pkt->setData ( data.get() );
                 break;

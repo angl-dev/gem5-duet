@@ -25,8 +25,7 @@ public:
 // == Virtual Methods ========================================================
 // ===========================================================================
 protected:
-    virtual bool _next_call ( DuetFunctor::caller_id_t & id ) = 0;
-    virtual DuetFunctor * _new_functor ( DuetFunctor::caller_id_t id );
+    virtual DuetFunctor * _new_functor () = 0;
 
 // ===========================================================================
 // == Implementing virtual methods ===========================================

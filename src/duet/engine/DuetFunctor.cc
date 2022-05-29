@@ -7,8 +7,8 @@ namespace duet {
 DuetFunctor::DuetFunctor ( DuetLane * lane, caller_id_t caller_id )
     : _lane                 ( lane )
     , _caller_id            ( caller_id )
+    , _blocking_chan_id     ()
     , _stage                ( 0 )
-    , _blocking_chan_id     ( 0, DuetFunctor::chan_id_t::INVALID )
     , _is_functors_turn     ( false )
     , _is_done              ( false )
 {
@@ -113,10 +113,11 @@ void DuetFunctor::enqueue_req (
     chan.push_back ( req );
 }
 
+template <typename T>
 void DuetFunctor::enqueue_data (
         DuetFunctor::stage_t                stage
         , DuetFunctor::chan_data_t &        chan
-        , const DuetFunctor::raw_data_t &   data
+        , const T &                         data
         )
 {
     // update state
@@ -128,12 +129,16 @@ void DuetFunctor::enqueue_data (
     _yield ();
 
     // resume execution
-    chan.push_back ( data );
+    raw_data_t packed ( new uint8_t [sizeof(data)] );
+    memcpy ( packed.get(), &data, sizeof(data) );
+    chan.push_back ( packed );
 }
 
-DuetFunctor::raw_data_t DuetFunctor::dequeue_data (
+template <typename T>
+void DuetFunctor::dequeue_data (
         DuetFunctor::stage_t                stage
         , DuetFunctor::chan_data_t &        chan
+        , T &                               data
         )
 {
     // update state
@@ -145,8 +150,9 @@ DuetFunctor::raw_data_t DuetFunctor::dequeue_data (
     _yield ();
 
     // resume execution
-    raw_data_t data = chan.front ();
+    raw_data_t data_ = chan.front ();
     chan.pop_front ();
+    memcpy ( &data, data_.get(), sizeof(T) );
 }
 
 void DuetFunctor::_yield ( bool wait ) {

@@ -1,0 +1,7 @@
+Import('*')
+
+SimObject('DuetNaive.py', sim_objects=['NaiveLane', 'NaiveEngine'])
+
+Source('functor.cc')
+Source('lane.cc')
+Source('engine.cc')

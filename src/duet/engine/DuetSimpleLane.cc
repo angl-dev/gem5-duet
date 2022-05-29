@@ -17,13 +17,17 @@ void DuetSimpleLane::pull_phase () {
             auto chan_id    = _functor->get_blocking_chan_id ();
 
             switch ( chan_id.tag ) {
-            case DuetFunctor::chan_id_t::INPUT:
+            case DuetFunctor::chan_id_t::RDATA:
+            case DuetFunctor::chan_id_t::ARG:
+            case DuetFunctor::chan_id_t::PULL:
                 if ( _engine->can_pull_from_chan ( caller_id, chan_id ) )
                     _advance ();
                 break;
 
             case DuetFunctor::chan_id_t::REQ:
-            case DuetFunctor::chan_id_t::OUTPUT:
+            case DuetFunctor::chan_id_t::WDATA:
+            case DuetFunctor::chan_id_t::RET:
+            case DuetFunctor::chan_id_t::PUSH:
                 // we handle these in the push phase
                 break;
 
@@ -35,11 +39,8 @@ void DuetSimpleLane::pull_phase () {
 
     // if there is no running functor, try to start a new one
     if ( !_functor ) {
-        DuetFunctor::caller_id_t id;
-        if ( _next_call ( id ) ) {
-            _functor.reset ( _new_functor ( id ) );
-            _remaining = Cycles(0);
-        }
+        _functor.reset ( _new_functor () );
+        _remaining = Cycles(0);
     }
 }
 
@@ -50,12 +51,16 @@ void DuetSimpleLane::push_phase () {
         auto chan_id    = _functor->get_blocking_chan_id ();
 
         switch ( chan_id.tag ) {
-            case DuetFunctor::chan_id_t::INPUT:
+            case DuetFunctor::chan_id_t::RDATA:
+            case DuetFunctor::chan_id_t::ARG:
+            case DuetFunctor::chan_id_t::PULL:
                 // we handle these in the pull phase
                 break;
 
             case DuetFunctor::chan_id_t::REQ:
-            case DuetFunctor::chan_id_t::OUTPUT:
+            case DuetFunctor::chan_id_t::WDATA:
+            case DuetFunctor::chan_id_t::RET:
+            case DuetFunctor::chan_id_t::PUSH:
                 if ( _engine->can_push_to_chan ( caller_id, chan_id ) )
                     _advance ();
                 break;

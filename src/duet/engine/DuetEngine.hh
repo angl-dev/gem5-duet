@@ -60,19 +60,34 @@ public:
 // == Paramterized Member Variables ==========================================
 // ===========================================================================
 private:
-    System                    * _system;
-    Process                   * _process;   // to access the page table
-    unsigned                    _fifo_capacity;
-    Addr                        _baseaddr;
-    SRIPort                     _sri_port;
-    std::vector <MemoryPort>    _mem_ports;
+    System                                    * _system;
+    Process                                   * _process;   // to access the page table
+    unsigned                                    _fifo_capacity;
+    DuetFunctor::caller_id_t                    _num_callers;
+    Addr                                        _baseaddr;
+    std::vector <std::unique_ptr <DuetLane>>    _lanes;
+    SRIPort                                     _sri_port;
+    std::vector <MemoryPort>                    _mem_ports;
 
 protected:
-    std::map <std::pair <DuetFunctor::caller_id_t, uint32_t>
-        , std::shared_ptr <DuetFunctor::chan_req_t>>    _chan_req_by_id;
-    std::map <std::pair <DuetFunctor::caller_id_t, uint32_t>
-        , std::shared_ptr <DuetFunctor::chan_data_t>>   _chan_data_by_id;
-    std::vector <std::unique_ptr <DuetLane>>            _lanes;
+    // -- Channels -----------------------------------------------------------
+    //  Argument/Return channels: per caller
+    std::vector <std::map <uint16_t,
+        std::unique_ptr <DuetFunctor::chan_data_t>>>    _chan_arg_by_id;
+    std::vector <std::map <uint16_t, 
+        std::unique_ptr <DuetFunctor::chan_data_t>>>    _chan_ret_by_id;
+
+    //  memory channels -- shared among callers
+    std::map <uint16_t,
+        std::unique_ptr <DuetFunctor::chan_req_t>>      _chan_req_by_id;
+    std::map <uint16_t,
+        std::unique_ptr <DuetFunctor::chan_data_t>>     _chan_wdata_by_id;
+    std::map <uint16_t,
+        std::unique_ptr <DuetFunctor::chan_data_t>>     _chan_rdata_by_id;
+
+    //  inter-lane channels -- shared among callers
+    std::map <uint16_t,
+        std::unique_ptr <DuetFunctor::chan_data_t>>     _chan_int_by_id;
 
 // ===========================================================================
 // == Non-Parameterized Member Variables =====================================
@@ -113,12 +128,14 @@ public:
             , DuetFunctor::chan_id_t    chan_id
             );
 
+    DuetFunctor::caller_id_t get_num_callers () const { return _num_callers; }
+
 // ===========================================================================
 // == API for Subclasses =====================================================
 // ===========================================================================
 protected:
     bool _try_send_mem_req_one (
-            uint32_t                    chan_id
+            uint16_t                    chan_id
             , DuetFunctor::mem_req_t    req
             , DuetFunctor::raw_data_t   data
             );
@@ -142,7 +159,7 @@ protected:
     virtual void _try_send_mem_req_all () = 0;
 
     virtual bool _try_recv_mem_resp_one (
-            uint32_t                    chan_id
+            uint16_t                    chan_id
             , DuetFunctor::raw_data_t   data
             ) = 0;
 
