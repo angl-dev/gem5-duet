@@ -19,9 +19,6 @@ DuetFunctor::DuetFunctor ( DuetLane * lane, caller_id_t caller_id )
     std::unique_lock functor_lock ( _mutex, std::defer_lock );
     std::swap ( functor_lock, _functor_lock );
 
-    // get or create necessary channels
-    setup ();
-
     // create the functor thread
     std::thread t ( [&] {
             // wait until awaken by the main thread
@@ -111,48 +108,6 @@ void DuetFunctor::enqueue_req (
 
     // resume execution
     chan.push_back ( req );
-}
-
-template <typename T>
-void DuetFunctor::enqueue_data (
-        DuetFunctor::stage_t                stage
-        , DuetFunctor::chan_data_t &        chan
-        , const T &                         data
-        )
-{
-    // update state
-    _stage              = stage;
-    _blocking_chan_id   = _id_by_chan [
-        reinterpret_cast <void *> (&chan) ];
-
-    // transfer control back to the main thread
-    _yield ();
-
-    // resume execution
-    raw_data_t packed ( new uint8_t [sizeof(data)] );
-    memcpy ( packed.get(), &data, sizeof(data) );
-    chan.push_back ( packed );
-}
-
-template <typename T>
-void DuetFunctor::dequeue_data (
-        DuetFunctor::stage_t                stage
-        , DuetFunctor::chan_data_t &        chan
-        , T &                               data
-        )
-{
-    // update state
-    _stage              = stage;
-    _blocking_chan_id   = _id_by_chan [
-        reinterpret_cast <void *> (&chan) ];
-
-    // transfer control back to the main thread
-    _yield ();
-
-    // resume execution
-    raw_data_t data_ = chan.front ();
-    chan.pop_front ();
-    memcpy ( &data, data_.get(), sizeof(T) );
 }
 
 void DuetFunctor::_yield ( bool wait ) {

@@ -14,8 +14,16 @@ private:
     chan_data_t     * chan_rdata;
 
 protected:
-    void setup () override final;
     void run () override final;
+
+public:
+    NaiveFunctor ( DuetLane * lane, caller_id_t caller_id )
+        : DuetFunctor ( lane, caller_id )
+    {}
+
+    ~NaiveFunctor () {}
+
+    void setup () override final;
 };
 
 }   // namespace duet

@@ -19,7 +19,7 @@ class DuetLane : public SimObject {
 protected:
     DuetEngine        * _engine;
     std::map <std::pair <DuetFunctor::stage_t, DuetFunctor::stage_t>
-        , std::Cycles>  _transition_latency;
+        , Cycles>       _transition_latency;
 
 // ===========================================================================
 // == API for subclesses =====================================================

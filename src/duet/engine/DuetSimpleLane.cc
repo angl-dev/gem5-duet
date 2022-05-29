@@ -1,4 +1,5 @@
 #include "duet/engine/DuetSimpleLane.hh"
+#include "duet/engine/DuetEngine.hh"
 
 namespace gem5 {
 namespace duet {
@@ -41,6 +42,10 @@ void DuetSimpleLane::pull_phase () {
     if ( !_functor ) {
         _functor.reset ( _new_functor () );
         _remaining = Cycles(0);
+
+        if ( _functor ) {
+            _functor->setup ();
+        }
     }
 }
 
@@ -84,7 +89,7 @@ void DuetSimpleLane::_advance () {
 }
 
 bool DuetSimpleLane::has_work () {
-    return _functor;
+    return bool(_functor);
 }
 
 }   // namespace duet

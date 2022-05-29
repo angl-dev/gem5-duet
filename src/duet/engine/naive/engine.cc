@@ -9,8 +9,7 @@ NaiveEngine::NaiveEngine ( const DuetEngineParams & p )
 {
     for ( DuetFunctor::caller_id_t i = 0; i < _num_callers; ++i ) {
         _chan_arg_by_id.emplace_back ();
-        _chan_arg_by_id[i].emplace ( 0,
-                std::make_unique (new DuetFunctor::chan_data_t ()) );
+        _chan_arg_by_id[i].emplace ( 0, new DuetFunctor::chan_data_t () );
     }
 
     _chan_req_by_id.emplace ( 0, new DuetFunctor::chan_req_t () );
@@ -63,25 +62,25 @@ void NaiveEngine::_try_send_mem_req_all () {
     if ( chan->empty () )
         return;
 
-    auto req = chan.front ();
+    auto req = chan->front ();
     DuetFunctor::raw_data_t data;
 
-    switch ( req.tag ) {
+    switch ( req.type ) {
     case DuetFunctor::REQTYPE_LD:
         if ( _try_send_mem_req_one ( 0, req, data ) )
-            chan.pop_front ();
+            chan->pop_front ();
         break;
 
     case DuetFunctor::REQTYPE_ST:
         {
             auto & datachan = _chan_wdata_by_id [0];
-            if ( datachan.empty () )
+            if ( datachan->empty () )
                 return;
 
-            data = datachan.front ();
+            data = datachan->front ();
             if ( _try_send_mem_req_one ( 0, req, data ) ) {
-                chan.pop_front ();
-                datachan.pop_front ();
+                chan->pop_front ();
+                datachan->pop_front ();
             }
         }
         break;
@@ -119,9 +118,9 @@ bool NaiveEngine::_try_recv_mem_resp_one (
     auto & chan = _chan_rdata_by_id [0];
 
     if ( 0 == _fifo_capacity
-            || chan.size () < _fifo_capacity )
+            || chan->size () < _fifo_capacity )
     {
-        chan.push_back ( data );
+        chan->push_back ( data );
         return true;
     } else {
         return false;

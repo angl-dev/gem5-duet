@@ -1,13 +1,13 @@
 #ifndef __DUET_NAIVE_LANE_HH
 #define __DUET_NAIVE_LANE_HH
 
-#include "duet/engine/SimpleDuetLane.hh"
+#include "duet/engine/DuetSimpleLane.hh"
 
 namespace gem5 {
 namespace duet {
 
 class NaiveFunctor;
-class NaiveLane : public SimpleDuetLane {
+class NaiveLane : public DuetSimpleLane {
 private:
     DuetFunctor::caller_id_t    _next_caller_roundrobin;
 

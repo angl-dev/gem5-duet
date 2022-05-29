@@ -1,7 +1,7 @@
 #ifndef __DUET_CLOCKED_OBJECT_HH
 #define __DUET_CLOCKED_OBJECT_HH
 
-#include "params/ClockedObject.hh"
+#include "params/DuetClockedObject.hh"
 #include "sim/clocked_object.hh"
 #include "mem/port.hh"
 #include "mem/packet.hh"
@@ -82,15 +82,15 @@ private:
 
 protected:
     void _wakeup ();
-    bool _is_process_phase () const { return curCycle() >= _latest_cycle_plus1; }
+    bool _is_update_phase () const { return curCycle() >= _latest_cycle_plus1; }
     bool _is_exchange_phase () const { return curCycle() < _latest_cycle_plus1; }
 
-    virtual void _process () {};
+    virtual void _update () {};
     virtual void _exchange () {};
     virtual bool _has_work () = 0;
 
 public:
-    DuetPipeline ( const ClockedObjectParams & p )
+    DuetClockedObject ( const DuetClockedObjectParams & p )
         : ClockedObject         ( p )
         , _e_do_cycle           ( [this]{ _do_cycle(); }, name() )
         , _latest_cycle_plus1   ( 0 )

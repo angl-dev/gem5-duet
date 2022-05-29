@@ -12,6 +12,7 @@
 
 #else /* #ifdef __DUET_HLS */
     #include <stdint.h>
+    #include <string.h>
     #include <list>
     #include <map>
     #include <utility>
@@ -171,8 +172,8 @@ public:
 // ===========================================================================
 // == Types that are only visible to GEM5 ====================================
 // ===========================================================================
-    typedef shared_ptr<uint8_t[]>   raw_data_t;
-    typedef uint32_t                caller_id_t;
+    typedef std::shared_ptr<uint8_t[]>  raw_data_t;
+    typedef uint32_t                    caller_id_t;
 
     typedef struct _chan_id_t {
         enum : uint8_t {
@@ -182,6 +183,11 @@ public:
             PULL, PUSH               // inter-lane channels
         }                           tag;
         uint16_t                    id;
+
+        // define comparator so it can be used as key for map
+        bool operator< (const _chan_id_t & other) const {
+            return tag < other.tag || id < other.id;
+        }
     } chan_id_t;
 
     typedef std::list <mem_req_t>   chan_req_t;
@@ -217,6 +223,13 @@ public:
      *  Construct and start the functor
      */
     DuetFunctor ( DuetLane * lane, caller_id_t caller_id );
+
+    /*
+     * (Destructor):
+     *
+     *  Virtual destructor!
+     */
+    virtual ~DuetFunctor() {};
 
     /*
      * advance:
@@ -270,7 +283,21 @@ protected:
             stage_t                 stage
             , chan_data_t &         chan
             , const T &             data
-            );
+            )
+    {
+        // update state
+        _stage              = stage;
+        _blocking_chan_id   = _id_by_chan [
+            reinterpret_cast <void *> (&chan) ];
+
+        // transfer control back to the main thread
+        _yield ();
+
+        // resume execution
+        raw_data_t packed ( new uint8_t [sizeof(data)] );
+        memcpy ( packed.get(), &data, sizeof(data) );
+        chan.push_back ( packed );
+    }
 
     /*
      * dequeue_data:
@@ -282,7 +309,21 @@ protected:
             stage_t                 stage
             , chan_data_t &         chan
             , T &                   data
-            );
+            )
+    {
+        // update state
+        _stage              = stage;
+        _blocking_chan_id   = _id_by_chan [
+            reinterpret_cast <void *> (&chan) ];
+
+        // transfer control back to the main thread
+        _yield ();
+
+        // resume execution
+        raw_data_t data_ = chan.front ();
+        chan.pop_front ();
+        memcpy ( &data, data_.get(), sizeof(T) );
+    }
 
     /*
      * request_load:
@@ -326,10 +367,10 @@ private:
      */
     void _yield ( bool wait = true );
 
-protected:
 // ===========================================================================
 // == Virtual Methods (GEM5) =================================================
 // ===========================================================================
+public:
     /*
      * setup:
      *
@@ -338,6 +379,7 @@ protected:
      */
     virtual void setup () = 0;
 
+protected:
     /*
      * run:
      *

@@ -4,9 +4,9 @@
 namespace gem5 {
 namespace duet {
 
-DuetLane::DuetLane ( const DuetLaneParms & p )
-    : DuetClockedObject ( p )
-    , _engine           ( p.engine )
+DuetLane::DuetLane ( const DuetLaneParams & p )
+    : SimObject     ( p )
+    , _engine       ( p.engine )
 {
     panic_if ( p.transition_from_stage.size () != p.transition_to_stage.size ()
             || p.transition_to_stage.size () != p.transition_latency.size (),
@@ -38,7 +38,7 @@ Cycles DuetLane::_get_latency (
 }
 
 DuetFunctor::chan_req_t & DuetLane::get_chan_req (
-        DuetFunctor::caller_id      caller_id
+        DuetFunctor::caller_id_t    caller_id
         , DuetFunctor::chan_id_t    chan_id
         )
 {
@@ -46,7 +46,7 @@ DuetFunctor::chan_req_t & DuetLane::get_chan_req (
 }
 
 DuetFunctor::chan_data_t & DuetLane::get_chan_data (
-        DuetFunctor::caller_id      caller_id
+        DuetFunctor::caller_id_t    caller_id
         , DuetFunctor::chan_id_t    chan_id
         )
 {

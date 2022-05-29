@@ -24,7 +24,7 @@ class DuetEngine : public DuetClockedObject {
 // ===========================================================================
 // == Type Definitions =======================================================
 // ===========================================================================
-private:
+protected:
     /* SRI Port */
     class SRIPort : public UpstreamPort {
     private:
@@ -50,6 +50,13 @@ private:
     /* Memory Port */
     class MemoryPort : public DownstreamPort {
     public:
+        MemoryPort ( const std::string & name
+                , DuetEngine * owner
+                , PortID id = InvalidPortID
+                )
+            : DownstreamPort    ( name, owner, id )
+        {}
+
         void recvRangeChange () override {};
     };
 
@@ -59,13 +66,13 @@ public:
 // ===========================================================================
 // == Paramterized Member Variables ==========================================
 // ===========================================================================
-private:
+protected:
     System                                    * _system;
     Process                                   * _process;   // to access the page table
     unsigned                                    _fifo_capacity;
     DuetFunctor::caller_id_t                    _num_callers;
     Addr                                        _baseaddr;
-    std::vector <std::unique_ptr <DuetLane>>    _lanes;
+    std::vector <DuetLane*>                     _lanes;
     SRIPort                                     _sri_port;
     std::vector <MemoryPort>                    _mem_ports;
 
@@ -92,7 +99,7 @@ protected:
 // ===========================================================================
 // == Non-Parameterized Member Variables =====================================
 // ===========================================================================
-private:
+protected:
     // we need a requestor ID to be able to send out memory requests
     RequestorID                 _requestorId;
 
@@ -100,7 +107,7 @@ private:
 // == Implementing Virtual Methods ===========================================
 // ===========================================================================
 protected:
-    void _process () override final;
+    void _update () override final;
     void _exchange () override final;
     bool _has_work () override final;
 

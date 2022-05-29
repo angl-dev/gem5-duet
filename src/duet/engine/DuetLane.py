@@ -1,6 +1,7 @@
 from m5.params import *
 from m5.proxy import *
 from m5.objects import *
+from m5.objects.SimObject import SimObject
 
 class DuetLane (SimObject):
     type                    = "DuetLane"

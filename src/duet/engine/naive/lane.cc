@@ -1,11 +1,12 @@
 #include "duet/engine/naive/functor.hh"
 #include "duet/engine/naive/lane.hh"
+#include "duet/engine/DuetEngine.hh"
 
 namespace gem5 {
 namespace duet {
 
 NaiveLane::NaiveLane ( const DuetLaneParams & p )
-    : SimpleDuetLane                ( p )
+    : DuetSimpleLane                ( p )
     , _next_caller_roundrobin       ( 0 )
 {}
 

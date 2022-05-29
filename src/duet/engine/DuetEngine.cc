@@ -1,4 +1,5 @@
 #include "duet/engine/DuetEngine.hh"
+#include "duet/engine/DuetLane.hh"
 #include "sim/system.hh"
 #include "sim/process.hh"
 
@@ -32,7 +33,7 @@ DuetEngine::DuetEngine ( const DuetEngineParams & p )
     }
 }
 
-void DuetEngine::_process () {
+void DuetEngine::_update () {
     // -- pull phase ---------------------------------------------------------
     //  1. if SRI request buffer contains a load, and SRI response buffer is
     //     unused: check if we can handle the access
@@ -44,7 +45,7 @@ void DuetEngine::_process () {
         softreg_id_t id = ( pkt->getAddr () - _baseaddr ) >> 3;
 
         uint64_t value;
-        if ( handle_softreg_read ( id, value ) ) {
+        if ( _handle_softreg_read ( id, value ) ) {
             pkt->setLE ( value );
             pkt->makeResponse ();
             _sri_port._req_buf = nullptr;
@@ -70,7 +71,7 @@ void DuetEngine::_process () {
         softreg_id_t id = ( pkt->getAddr () - _baseaddr ) >> 3;
         uint64_t value = pkt->getLE<uint64_t> ();
 
-        if ( handle_softreg_write ( id, value ) ) {
+        if ( _handle_softreg_write ( id, value ) ) {
             pkt->makeResponse ();
             _sri_port._req_buf = nullptr;
             _sri_port._resp_buf = pkt;
@@ -80,7 +81,7 @@ void DuetEngine::_process () {
     //  2. if memory response buffer contains a valid load response, see if we
     //     can receive it
     for ( auto & port : _mem_ports ) {
-        auto pkt = _mem_port._resp_buf;
+        auto pkt = port._resp_buf;
 
         if ( nullptr != pkt ) {
 
@@ -91,11 +92,11 @@ void DuetEngine::_process () {
                 std::memcpy ( data.get(), pkt->getPtr<uint8_t>(), pkt->getSize() );
 
                 if ( _try_recv_mem_resp_one ( chan_id, data ) ) {
-                    _mem_port._resp_buf = nullptr;
+                    port._resp_buf = nullptr;
                     delete pkt;
                 }
             } else {
-                _mem_port._resp_buf = nullptr;
+                port._resp_buf = nullptr;
                 delete pkt;
             }
         }
@@ -172,10 +173,10 @@ DuetFunctor::chan_data_t & DuetEngine::get_chan_data (
         return *( _chan_rdata_by_id [chan_id.id] );
 
     case DuetFunctor::chan_id_t::ARG:
-        return *( _chan_arg_by_id [chan_id.id] );
+        return *( _chan_arg_by_id [caller_id] [chan_id.id] );
 
     case DuetFunctor::chan_id_t::RET:
-        return *( _chan_ret_by_id [chan_id.id] );
+        return *( _chan_ret_by_id [caller_id] [chan_id.id] );
 
     case DuetFunctor::chan_id_t::PULL:
     case DuetFunctor::chan_id_t::PUSH:
@@ -208,7 +209,7 @@ bool DuetEngine::can_push_to_chan (
 
     case DuetFunctor::chan_id_t::RET:
         return (0 == _fifo_capacity
-                || _chan_wdata_by_id [chan_id.id]->size() < _fifo_capacity);
+                || _chan_ret_by_id [caller_id] [chan_id.id]->size() < _fifo_capacity);
 
     case DuetFunctor::chan_id_t::PULL:
         panic ( "Trying to push to PULL channel" );
@@ -240,7 +241,7 @@ bool DuetEngine::can_pull_from_chan (
         return !_chan_rdata_by_id [chan_id.id]->empty ();
 
     case DuetFunctor::chan_id_t::ARG:
-        return !_chan_arg_by_id [chan_id.id]->empty ();
+        return !_chan_arg_by_id [caller_id] [chan_id.id]->empty ();
 
     case DuetFunctor::chan_id_t::RET:
         panic ( "Trying to pull from RET channel" );

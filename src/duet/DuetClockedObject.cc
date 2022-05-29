@@ -13,8 +13,8 @@ bool DuetClockedObject::UpstreamPort::recvTimingReq ( PacketPtr pkt ) {
         return true;
     }
 
-    // block until process phase is done
-    else if ( _owner->_is_process_phase ()
+    // block until update phase is done
+    else if ( _owner->_is_update_phase ()
             || nullptr != _req_buf )
     {
         _is_peer_waiting_for_retry = true;
@@ -28,8 +28,8 @@ bool DuetClockedObject::UpstreamPort::recvTimingReq ( PacketPtr pkt ) {
 void DuetClockedObject::UpstreamPort::recvRespRetry () {
     panic_if ( !_is_this_waiting_for_retry, "Not waiting for retry!\n" );
 
-    // postpone until the process phase is done
-    if ( _owner->_is_process_phase () )
+    // postpone until the update phase is done
+    if ( _owner->_is_update_phase () )
         _is_this_waiting_for_retry = false;
 
     else
@@ -49,8 +49,8 @@ void DuetClockedObject::UpstreamPort::_try_send_resp () {
 }
 
 bool DuetClockedObject::DownstreamPort::recvTimingResp ( PacketPtr pkt ) {
-    // block until the process phase is done
-    if ( _owner->_is_process_phase ()
+    // block until the update phase is done
+    if ( _owner->_is_update_phase ()
             || nullptr != _resp_buf )
     {
         _is_peer_waiting_for_retry = true;
@@ -64,8 +64,8 @@ bool DuetClockedObject::DownstreamPort::recvTimingResp ( PacketPtr pkt ) {
 void DuetClockedObject::DownstreamPort::recvReqRetry () {
     panic_if ( !_is_this_waiting_for_retry, "Not waiting for retry!\n" );
 
-    // postpone until the process phase is done
-    if ( _owner->_is_process_phase () )
+    // postpone until the update phase is done
+    if ( _owner->_is_update_phase () )
         _is_this_waiting_for_retry = false;
 
     else
@@ -85,8 +85,8 @@ void DuetClockedObject::DownstreamPort::_try_send_req () {
 }
 
 void DuetClockedObject::_do_cycle () {
-    // process phase
-    _process ();
+    // update phase
+    _update ();
 
     // increment cycle
     ++_latest_cycle_plus1;
