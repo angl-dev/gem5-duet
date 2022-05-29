@@ -9,7 +9,6 @@ class DuetLane (SimObject):
     cxx_header              = "duet/engine/DuetLane.hh"
     abstract                = True
 
-    engine                  = Param.DuetEngine ( Parent.any, "Parent engine" )
     transition_from_stage   = VectorParam.UInt32 ( "From stages ..." )
     transition_to_stage     = VectorParam.UInt32 ( "To stages ..." )
     transition_latency      = VectorParam.Cycles ( "Latency ..." )

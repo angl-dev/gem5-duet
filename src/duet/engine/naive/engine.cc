@@ -8,11 +8,11 @@ NaiveEngine::NaiveEngine ( const DuetEngineParams & p )
     : DuetEngine ( p )
 {
     for ( DuetFunctor::caller_id_t i = 0; i < _num_callers; ++i ) {
-        _chan_arg_by_id.emplace_back ();
-        _chan_arg_by_id[i].emplace ( 0, new DuetFunctor::chan_data_t () );
+        _chan_arg_by_id.emplace ( i, new DuetFunctor::chan_data_t () );
+        _chan_ret_by_id.emplace ( i, new DuetFunctor::chan_data_t () );
     }
 
-    _chan_req_by_id.emplace ( 0, new DuetFunctor::chan_req_t () );
+    _chan_req_by_id.emplace   ( 0, new DuetFunctor::chan_req_t () );
     _chan_wdata_by_id.emplace ( 0, new DuetFunctor::chan_data_t () );
     _chan_rdata_by_id.emplace ( 0, new DuetFunctor::chan_data_t () );
 }
@@ -26,7 +26,7 @@ bool NaiveEngine::_handle_softreg_write (
         , uint64_t                  value
         )
 {
-    auto & chan = _chan_arg_by_id[softreg_id][0];
+    auto & chan = _chan_arg_by_id[softreg_id];
 
     if ( 0 == _fifo_capacity
             || chan->size() < _fifo_capacity )
@@ -45,7 +45,7 @@ bool NaiveEngine::_handle_softreg_read (
         , uint64_t                & value
         )
 {
-    auto & chan = _chan_arg_by_id[softreg_id][0];
+    auto & chan = _chan_ret_by_id[softreg_id];
 
     if ( !chan->empty () ) {
         auto raw = chan->front ();

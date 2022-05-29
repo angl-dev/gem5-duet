@@ -94,7 +94,7 @@ public:
         : ClockedObject         ( p )
         , _e_do_cycle           ( [this]{ _do_cycle(); }, name() )
         , _latest_cycle_plus1   ( 0 )
-        , _is_sleeping          ( false )
+        , _is_sleeping          ( true )
     {}
 };
 

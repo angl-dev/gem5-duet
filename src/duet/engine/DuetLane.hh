@@ -38,13 +38,11 @@ protected:
 // ===========================================================================
 public:
     DuetFunctor::chan_req_t & get_chan_req (
-            DuetFunctor::caller_id_t    caller_id
-            , DuetFunctor::chan_id_t    chan_id
+            DuetFunctor::chan_id_t      chan_id
             );
 
     DuetFunctor::chan_data_t & get_chan_data (
-            DuetFunctor::caller_id_t    caller_id
-            , DuetFunctor::chan_id_t    chan_id
+            DuetFunctor::chan_id_t      chan_id
             );
 
 // ===========================================================================
@@ -62,6 +60,8 @@ public:
      * DuetEngine calls `has_work` to check if it can go to sleep
      */
     virtual bool has_work () = 0;
+
+    void set_engine ( DuetEngine * engine ) { _engine = engine; }
 };
 
 }   // namespace gem5

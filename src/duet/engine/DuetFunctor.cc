@@ -57,57 +57,28 @@ DuetFunctor::chan_req_t & DuetFunctor::get_chan_req (
         DuetFunctor::chan_id_t      id
         )
 {
-    assert ( id.tag == chan_id_t::REQ );
-
-    auto it = _chan_by_id.find ( id );
-    if ( _chan_by_id.end() != it ) {
-        auto pchan = reinterpret_cast <chan_req_t *> (it->second);
-        return *pchan;
-    } else {
-        auto & chan = _lane->get_chan_req ( _caller_id, id );
-        auto pchan = reinterpret_cast <void *> (&chan);
-        _chan_by_id [id] = pchan;
-        _id_by_chan [pchan] = id;
-        return chan;
-    }
+    assert ( chan_id_t::REQ == id.tag );
+    auto & chan = _lane->get_chan_req ( id );
+    auto pchan = reinterpret_cast <void *> (&chan);
+    auto ret = _id_by_chan.emplace ( pchan, id );
+    panic_if ( !ret.second, "Duplicate channels" );
+    return chan;
 }
 
 DuetFunctor::chan_data_t & DuetFunctor::get_chan_data (
         DuetFunctor::chan_id_t      id
         )
 {
-    assert ( id.tag != chan_id_t::REQ
-            && id.tag != chan_id_t::INVALID );
-
-    auto it = _chan_by_id.find ( id );
-    if ( _chan_by_id.end() != it ) {
-        auto pchan = reinterpret_cast <chan_data_t *> (it->second);
-        return *pchan;
-    } else {
-        auto & chan = _lane->get_chan_data ( _caller_id, id );
-        auto pchan = reinterpret_cast <void *> (&chan);
-        _chan_by_id [id] = pchan;
-        _id_by_chan [pchan] = id;
-        return chan;
-    }
-}
-
-void DuetFunctor::enqueue_req (
-        DuetFunctor::stage_t                stage
-        , DuetFunctor::chan_req_t &         chan
-        , const DuetFunctor::mem_req_t &    req
-        )
-{
-    // update state
-    _stage              = stage;
-    _blocking_chan_id   = _id_by_chan [
-        reinterpret_cast <void *> (&chan) ];
-
-    // transfer control back to the main thread
-    _yield ();
-
-    // resume execution
-    chan.push_back ( req );
+    assert ( chan_id_t::REQ != id.tag
+            && chan_id_t::INVALID != id.tag );
+    if ( chan_id_t::ARG == id.tag
+            || chan_id_t::RET == id.tag )
+        id.id = _caller_id;
+    auto & chan = _lane->get_chan_data ( id );
+    auto pchan = reinterpret_cast <void *> (&chan);
+    auto ret = _id_by_chan.emplace ( pchan, id );
+    panic_if ( !ret.second, "Duplicate channels" );
+    return chan;
 }
 
 void DuetFunctor::_yield ( bool wait ) {

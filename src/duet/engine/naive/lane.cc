@@ -15,9 +15,11 @@ DuetFunctor * NaiveLane::_new_functor () {
             i < _engine->get_num_callers ();
             ++i )
     {
-        DuetFunctor::chan_id_t id = { DuetFunctor::chan_id_t::ARG, 0 };
-        auto & chan = _engine->get_chan_data (
-                _next_caller_roundrobin, id );
+        DuetFunctor::chan_id_t id = {
+            DuetFunctor::chan_id_t::ARG,
+            _next_caller_roundrobin
+        };
+        auto & chan = _engine->get_chan_data ( id );
 
         if ( !chan.empty () ) {
             auto f = new NaiveFunctor ( this, _next_caller_roundrobin );

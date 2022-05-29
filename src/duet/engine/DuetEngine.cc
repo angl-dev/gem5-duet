@@ -31,6 +31,9 @@ DuetEngine::DuetEngine ( const DuetEngineParams & p )
         std::string portName = csprintf ( "%s.mem_ports[%d]", name(), i );
         _mem_ports.emplace_back ( portName, this, i );
     }
+
+    for ( auto & lane : _lanes )
+        lane->set_engine ( this );
 }
 
 void DuetEngine::_update () {
@@ -152,8 +155,7 @@ bool DuetEngine::_has_work () {
 }
 
 DuetFunctor::chan_req_t & DuetEngine::get_chan_req (
-        DuetFunctor::caller_id_t    caller_id
-        , DuetFunctor::chan_id_t    chan_id
+        DuetFunctor::chan_id_t      chan_id
         )
 {
     assert ( DuetFunctor::chan_id_t::REQ == chan_id.tag );
@@ -161,8 +163,7 @@ DuetFunctor::chan_req_t & DuetEngine::get_chan_req (
 }
 
 DuetFunctor::chan_data_t & DuetEngine::get_chan_data (
-        DuetFunctor::caller_id_t    caller_id
-        , DuetFunctor::chan_id_t    chan_id
+        DuetFunctor::chan_id_t      chan_id
         )
 {
     switch ( chan_id.tag ) {
@@ -173,10 +174,10 @@ DuetFunctor::chan_data_t & DuetEngine::get_chan_data (
         return *( _chan_rdata_by_id [chan_id.id] );
 
     case DuetFunctor::chan_id_t::ARG:
-        return *( _chan_arg_by_id [caller_id] [chan_id.id] );
+        return *( _chan_arg_by_id [chan_id.id] );
 
     case DuetFunctor::chan_id_t::RET:
-        return *( _chan_ret_by_id [caller_id] [chan_id.id] );
+        return *( _chan_ret_by_id [chan_id.id] );
 
     case DuetFunctor::chan_id_t::PULL:
     case DuetFunctor::chan_id_t::PUSH:
@@ -188,8 +189,7 @@ DuetFunctor::chan_data_t & DuetEngine::get_chan_data (
 }
 
 bool DuetEngine::can_push_to_chan (
-        DuetFunctor::caller_id_t    caller_id
-        , DuetFunctor::chan_id_t    chan_id
+        DuetFunctor::chan_id_t      chan_id
         )
 {
     switch ( chan_id.tag ) {
@@ -209,7 +209,7 @@ bool DuetEngine::can_push_to_chan (
 
     case DuetFunctor::chan_id_t::RET:
         return (0 == _fifo_capacity
-                || _chan_ret_by_id [caller_id] [chan_id.id]->size() < _fifo_capacity);
+                || _chan_ret_by_id [chan_id.id]->size() < _fifo_capacity);
 
     case DuetFunctor::chan_id_t::PULL:
         panic ( "Trying to push to PULL channel" );
@@ -226,8 +226,7 @@ bool DuetEngine::can_push_to_chan (
 }
 
 bool DuetEngine::can_pull_from_chan (
-        DuetFunctor::caller_id_t    caller_id
-        , DuetFunctor::chan_id_t    chan_id
+        DuetFunctor::chan_id_t      chan_id
         )
 {
     switch ( chan_id.tag ) {
@@ -241,7 +240,7 @@ bool DuetEngine::can_pull_from_chan (
         return !_chan_rdata_by_id [chan_id.id]->empty ();
 
     case DuetFunctor::chan_id_t::ARG:
-        return !_chan_arg_by_id [caller_id] [chan_id.id]->empty ();
+        return !_chan_arg_by_id [chan_id.id]->empty ();
 
     case DuetFunctor::chan_id_t::RET:
         panic ( "Trying to pull from RET channel" );
@@ -324,6 +323,28 @@ bool DuetEngine::_try_send_mem_req_one (
     }
 
     return false;
+}
+
+Port & DuetEngine::getPort (
+        const std::string & if_name
+        , PortID idx
+        )
+{
+    if ( if_name == "sri_port" ) {
+        panic_if ( InvalidPortID != idx,
+                "sri_port is not a vector port" );
+        return _sri_port;
+    } else if ( if_name == "mem_ports" )
+        return _mem_ports[idx];
+    else 
+        return SimObject::getPort ( if_name, idx );
+}
+
+void DuetEngine::init () {
+    ClockedObject::init ();
+
+    if ( _sri_port.isConnected() )
+        _sri_port.sendRangeChange ();
 }
 
 }   // namespace duet

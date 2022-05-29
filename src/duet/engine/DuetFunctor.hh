@@ -57,6 +57,13 @@ public:
         uintptr_t       addr;       // up to 48bit!
     } mem_req_t;
 
+    typedef enum _retcode_t : uint64_t {
+        RETCODE_DEFAULT = uint64_t(-1)  // functor returned without explicitly
+                                        // setting the return code. Simlar to
+                                        // returning "void"
+        , RETCODE_RUNNING = 0           // functor still running
+    } retcode_t;
+
     typedef uint32_t    stage_t;
 
 #ifdef __DUET_HLS
@@ -173,7 +180,7 @@ public:
 // == Types that are only visible to GEM5 ====================================
 // ===========================================================================
     typedef std::shared_ptr<uint8_t[]>  raw_data_t;
-    typedef uint32_t                    caller_id_t;
+    typedef uint16_t                    caller_id_t;
 
     typedef struct _chan_id_t {
         enum : uint8_t {
@@ -182,10 +189,12 @@ public:
             ARG, RET,                // ABI channels
             PULL, PUSH               // inter-lane channels
         }                           tag;
-        uint16_t                    id;
 
-        // define comparator so it can be used as key for map
-        bool operator< (const _chan_id_t & other) const {
+        // caller ID for ARG/RET channels, or channel ID for other channels
+        caller_id_t                 id;
+
+        // define comparator so this struct can be used as map key
+        bool operator< ( const _chan_id_t & other ) const {
             return tag < other.tag || id < other.id;
         }
     } chan_id_t;
@@ -204,7 +213,6 @@ private:
     bool                                    _is_functors_turn;
     bool                                    _is_done;
 
-    std::map <chan_id_t, void *>            _chan_by_id;
     std::map <void *, chan_id_t>            _id_by_chan;
 
     std::mutex                              _mutex;
@@ -250,6 +258,9 @@ public:
     /* [Getter] get_blocking_chan_id: */
     chan_id_t get_blocking_chan_id () const { return _blocking_chan_id; }
 
+    /* [Getter] is_done */
+    bool is_done () const { return _is_done; }
+
 // ===========================================================================
 // == API for subclasses (GEM5) ==============================================
 // ===========================================================================
@@ -271,7 +282,19 @@ protected:
             stage_t                 stage
             , chan_req_t &          chan
             , const mem_req_t &     req
-            );
+            )
+    {
+        // update state
+        _stage              = stage;
+        _blocking_chan_id   = _id_by_chan [
+            reinterpret_cast <void *> (&chan) ];
+
+        // transfer control back to the main thread
+        _yield ();
+
+        // resume execution
+        chan.push_back ( req );
+    }
 
     /*
      * enqueue_data:
@@ -378,6 +401,11 @@ public:
      *  channels
      */
     virtual void setup () = 0;
+
+    /*
+     * use_explicit_retcode:
+     */
+    virtual bool use_explicit_retcode () { return false; }
 
 protected:
     /*

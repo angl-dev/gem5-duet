@@ -78,22 +78,22 @@ protected:
 
 protected:
     // -- Channels -----------------------------------------------------------
-    //  Argument/Return channels: per caller
-    std::vector <std::map <uint16_t,
-        std::unique_ptr <DuetFunctor::chan_data_t>>>    _chan_arg_by_id;
-    std::vector <std::map <uint16_t, 
-        std::unique_ptr <DuetFunctor::chan_data_t>>>    _chan_ret_by_id;
+    //  Argument/Return channels: one per caller
+    std::map <DuetFunctor::caller_id_t,
+        std::unique_ptr <DuetFunctor::chan_data_t>>     _chan_arg_by_id;
+    std::map <DuetFunctor::caller_id_t,
+        std::unique_ptr <DuetFunctor::chan_data_t>>     _chan_ret_by_id;
 
     //  memory channels -- shared among callers
-    std::map <uint16_t,
+    std::map <DuetFunctor::caller_id_t,
         std::unique_ptr <DuetFunctor::chan_req_t>>      _chan_req_by_id;
-    std::map <uint16_t,
+    std::map <DuetFunctor::caller_id_t,
         std::unique_ptr <DuetFunctor::chan_data_t>>     _chan_wdata_by_id;
-    std::map <uint16_t,
+    std::map <DuetFunctor::caller_id_t,
         std::unique_ptr <DuetFunctor::chan_data_t>>     _chan_rdata_by_id;
 
     //  inter-lane channels -- shared among callers
-    std::map <uint16_t,
+    std::map <DuetFunctor::caller_id_t,
         std::unique_ptr <DuetFunctor::chan_data_t>>     _chan_int_by_id;
 
 // ===========================================================================
@@ -116,23 +116,19 @@ protected:
 // ===========================================================================
 public:
     DuetFunctor::chan_req_t & get_chan_req (
-            DuetFunctor::caller_id_t    caller_id
-            , DuetFunctor::chan_id_t    chan_id
+            DuetFunctor::chan_id_t      chan_id
             );
 
     DuetFunctor::chan_data_t & get_chan_data (
-            DuetFunctor::caller_id_t    caller_id
-            , DuetFunctor::chan_id_t    chan_id
+            DuetFunctor::chan_id_t      chan_id
             );
 
     bool can_push_to_chan (
-            DuetFunctor::caller_id_t    caller_id
-            , DuetFunctor::chan_id_t    chan_id
+            DuetFunctor::chan_id_t      chan_id
             );
 
     bool can_pull_from_chan (
-            DuetFunctor::caller_id_t    caller_id
-            , DuetFunctor::chan_id_t    chan_id
+            DuetFunctor::chan_id_t      chan_id
             );
 
     DuetFunctor::caller_id_t get_num_callers () const { return _num_callers; }
@@ -175,6 +171,9 @@ protected:
 // ===========================================================================
 public:
     DuetEngine ( const DuetEngineParams & p );
+    Port & getPort ( const std::string & if_name
+            , PortID idx = InvalidPortID ) override;
+    void init () override;
 };
 
 }   // namespace duet

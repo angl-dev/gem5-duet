@@ -6,7 +6,7 @@ namespace duet {
 bool DuetClockedObject::UpstreamPort::recvTimingReq ( PacketPtr pkt ) {
     // wake up owner if it is sleeping
     if ( _owner->_is_sleeping ) {
-        panic_if ( nullptr == _req_buf, "Owner sleeping with buffered request!\n" );
+        panic_if ( nullptr != _req_buf, "Owner sleeping with buffered request!\n" );
 
         _req_buf = pkt;
         _owner->_wakeup ();
