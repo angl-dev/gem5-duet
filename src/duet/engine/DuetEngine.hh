@@ -24,11 +24,12 @@ class DuetEngine : public DuetClockedObject {
 // ===========================================================================
 // == Type Definitions =======================================================
 // ===========================================================================
-protected:
+private:
+
     /* SRI Port */
     class SRIPort : public UpstreamPort {
     private:
-        DuetEngine *    _owner;
+        DuetEngine *    owner;
 
     public:
         SRIPort ( const std::string & name
@@ -36,7 +37,7 @@ protected:
                 , PortID id = InvalidPortID
                 )
             : UpstreamPort      ( name, owner, id )
-            , _owner            ( owner )
+            , owner             ( owner )
         {}
 
         void recvFunctional ( PacketPtr pkt ) override final {
@@ -66,7 +67,7 @@ public:
 // ===========================================================================
 // == Paramterized Member Variables ==========================================
 // ===========================================================================
-protected:
+private:
     System                                    * _system;
     Process                                   * _process;   // to access the page table
     unsigned                                    _fifo_capacity;
@@ -76,30 +77,24 @@ protected:
     SRIPort                                     _sri_port;
     std::vector <MemoryPort>                    _mem_ports;
 
-protected:
+private:
     // -- Channels -----------------------------------------------------------
     //  Argument/Return channels: one per caller
-    std::map <DuetFunctor::caller_id_t,
-        std::unique_ptr <DuetFunctor::chan_data_t>>     _chan_arg_by_id;
-    std::map <DuetFunctor::caller_id_t,
-        std::unique_ptr <DuetFunctor::chan_data_t>>     _chan_ret_by_id;
+    std::vector <std::unique_ptr <DuetFunctor::chan_data_t>> _chan_arg_by_id;
+    std::vector <std::unique_ptr <DuetFunctor::chan_data_t>> _chan_ret_by_id;
 
     //  memory channels -- shared among callers
-    std::map <DuetFunctor::caller_id_t,
-        std::unique_ptr <DuetFunctor::chan_req_t>>      _chan_req_by_id;
-    std::map <DuetFunctor::caller_id_t,
-        std::unique_ptr <DuetFunctor::chan_data_t>>     _chan_wdata_by_id;
-    std::map <DuetFunctor::caller_id_t,
-        std::unique_ptr <DuetFunctor::chan_data_t>>     _chan_rdata_by_id;
+    std::vector <std::unique_ptr <DuetFunctor::chan_req_t>>  _chan_req_by_id;
+    std::vector <std::unique_ptr <DuetFunctor::chan_data_t>> _chan_wdata_by_id;
+    std::vector <std::unique_ptr <DuetFunctor::chan_data_t>> _chan_rdata_by_id;
 
     //  inter-lane channels -- shared among callers
-    std::map <DuetFunctor::caller_id_t,
-        std::unique_ptr <DuetFunctor::chan_data_t>>     _chan_int_by_id;
+    std::vector <std::unique_ptr <DuetFunctor::chan_data_t>> _chan_int_by_id;
 
 // ===========================================================================
 // == Non-Parameterized Member Variables =====================================
 // ===========================================================================
-protected:
+private:
     // we need a requestor ID to be able to send out memory requests
     RequestorID                 _requestorId;
 
@@ -107,9 +102,9 @@ protected:
 // == Implementing Virtual Methods ===========================================
 // ===========================================================================
 protected:
-    void _update () override final;
-    void _exchange () override final;
-    bool _has_work () override final;
+    void update () override final;
+    void exchange () override final;
+    bool has_work () override final;
 
 // ===========================================================================
 // == API for DuetLane =======================================================
@@ -137,34 +132,41 @@ public:
 // == API for Subclasses =====================================================
 // ===========================================================================
 protected:
-    bool _try_send_mem_req_one (
+    bool try_send_mem_req_one (
             uint16_t                    chan_id
             , DuetFunctor::mem_req_t    req
             , DuetFunctor::raw_data_t   data
+            );
+
+    bool handle_argchan_push (
+            DuetFunctor::caller_id_t    caller_id
+            , uint64_t                  value
+            );
+
+    bool handle_retchan_pull (
+            DuetFunctor::caller_id_t    caller_id
+            , uint64_t                & value
             );
 
 // ===========================================================================
 // == Virtual Methods ========================================================
 // ===========================================================================
 protected:
-    virtual softreg_id_t _get_num_softregs () const = 0;
+    virtual softreg_id_t             get_num_softregs ()        const = 0;
+    virtual DuetFunctor::caller_id_t get_num_memory_chans ()    const { return 0; };
+    virtual DuetFunctor::caller_id_t get_num_interlane_chans () const { return 0; };
 
-    virtual bool _handle_softreg_write (
+    virtual bool handle_softreg_write (
             softreg_id_t    softreg_id
             , uint64_t      value
             ) = 0;
 
-    virtual bool _handle_softreg_read (
+    virtual bool handle_softreg_read (
             softreg_id_t    softreg_id
             , uint64_t    & value
             ) = 0;
 
-    virtual void _try_send_mem_req_all () = 0;
-
-    virtual bool _try_recv_mem_resp_one (
-            uint16_t                    chan_id
-            , DuetFunctor::raw_data_t   data
-            ) = 0;
+    virtual void try_send_mem_req_all () = 0;
 
 // ===========================================================================
 // == General API ============================================================

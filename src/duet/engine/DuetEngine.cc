@@ -8,8 +8,8 @@ namespace duet {
 
 AddrRangeList DuetEngine::SRIPort::getAddrRanges () const {
     AddrRangeList list;
-    AddrRange range ( _owner->_baseaddr
-            , _owner->_baseaddr + ( _owner->_get_num_softregs () << 3 )
+    AddrRange range ( owner->_baseaddr
+            , owner->_baseaddr + ( owner->get_num_softregs () << 3 )
             );
     list.push_back ( range );
     return list;
@@ -36,28 +36,28 @@ DuetEngine::DuetEngine ( const DuetEngineParams & p )
         lane->set_engine ( this );
 }
 
-void DuetEngine::_update () {
+void DuetEngine::update () {
     // -- pull phase ---------------------------------------------------------
     //  1. if SRI request buffer contains a load, and SRI response buffer is
     //     unused: check if we can handle the access
-    if ( nullptr != _sri_port._req_buf
-            && nullptr == _sri_port._resp_buf
-            && _sri_port._req_buf->isRead () )
+    if ( nullptr != _sri_port.req_buf
+            && nullptr == _sri_port.resp_buf
+            && _sri_port.req_buf->isRead () )
     {
-        auto pkt = _sri_port._req_buf;
+        auto pkt = _sri_port.req_buf;
         softreg_id_t id = ( pkt->getAddr () - _baseaddr ) >> 3;
 
         uint64_t value;
-        if ( _handle_softreg_read ( id, value ) ) {
+        if ( handle_softreg_read ( id, value ) ) {
             pkt->setLE ( value );
             pkt->makeResponse ();
-            _sri_port._req_buf = nullptr;
-            _sri_port._resp_buf = pkt;
+            _sri_port.req_buf = nullptr;
+            _sri_port.resp_buf = pkt;
         }
     }
 
     //  2. send as many memory requests as we can
-    _try_send_mem_req_all ();
+    try_send_mem_req_all ();
 
     //  3. call pull_phase on all lanes
     for ( auto & lane : _lanes )
@@ -66,40 +66,48 @@ void DuetEngine::_update () {
     // -- push phase ---------------------------------------------------------
     //  1. if SRI request buffer contains a store, and SRI response buffer is
     //     unused: check if we can handle the access
-    if ( nullptr != _sri_port._req_buf
-            && nullptr == _sri_port._resp_buf
-            && _sri_port._req_buf->isWrite () )
+    if ( nullptr != _sri_port.req_buf
+            && nullptr == _sri_port.resp_buf
+            && _sri_port.req_buf->isWrite () )
     {
-        auto pkt = _sri_port._req_buf;
+        auto pkt = _sri_port.req_buf;
         softreg_id_t id = ( pkt->getAddr () - _baseaddr ) >> 3;
         uint64_t value = pkt->getLE<uint64_t> ();
 
-        if ( _handle_softreg_write ( id, value ) ) {
+        if ( handle_softreg_write ( id, value ) ) {
             pkt->makeResponse ();
-            _sri_port._req_buf = nullptr;
-            _sri_port._resp_buf = pkt;
+            _sri_port.req_buf = nullptr;
+            _sri_port.resp_buf = pkt;
         }
     }
 
     //  2. if memory response buffer contains a valid load response, see if we
     //     can receive it
     for ( auto & port : _mem_ports ) {
-        auto pkt = port._resp_buf;
+        auto pkt = port.resp_buf;
 
         if ( nullptr != pkt ) {
 
             if ( pkt->isRead () ) {
                 uint16_t chan_id = pkt->req->getFlags() & Request::ARCH_BITS;
-                DuetFunctor::raw_data_t data (
-                        new uint8_t[ pkt->getSize() ]);
-                std::memcpy ( data.get(), pkt->getPtr<uint8_t>(), pkt->getSize() );
+                auto & chan = _chan_rdata_by_id [chan_id];
 
-                if ( _try_recv_mem_resp_one ( chan_id, data ) ) {
-                    port._resp_buf = nullptr;
+                if ( 0 == _fifo_capacity
+                        || chan->size () < _fifo_capacity )
+                {
+                    DuetFunctor::raw_data_t data (
+                            new uint8_t[ pkt->getSize() ]);
+                    std::memcpy (
+                            data.get(),
+                            pkt->getPtr<uint8_t>(),
+                            pkt->getSize()
+                            );
+                    chan->push_back ( data );
+                    port.resp_buf = nullptr;
                     delete pkt;
                 }
             } else {
-                port._resp_buf = nullptr;
+                port.resp_buf = nullptr;
                 delete pkt;
             }
         }
@@ -110,41 +118,41 @@ void DuetEngine::_update () {
         lane->push_phase ();
 }
 
-void DuetEngine::_exchange () {
+void DuetEngine::exchange () {
     //  1. send out SRI response if possible, then send out retry notifications
-    if ( nullptr != _sri_port._resp_buf
-            && !_sri_port._is_this_waiting_for_retry )
-        _sri_port._try_send_resp ();
+    if ( nullptr != _sri_port.resp_buf
+            && !_sri_port.is_this_waiting_for_retry )
+        _sri_port.try_send_resp ();
 
-    if ( nullptr == _sri_port._req_buf
-            && _sri_port._is_peer_waiting_for_retry )
+    if ( nullptr == _sri_port.req_buf
+            && _sri_port.is_peer_waiting_for_retry )
     {
-        _sri_port._is_peer_waiting_for_retry = false;
+        _sri_port.is_peer_waiting_for_retry = false;
         _sri_port.sendRetryReq ();
     }
 
     //  2. send out memory requests if possible, then send out retry
     //  notifications
     for ( auto & port : _mem_ports ) {
-        if ( nullptr != port._req_buf
-                && !port._is_this_waiting_for_retry )
-            port._try_send_req ();
+        if ( nullptr != port.req_buf
+                && !port.is_this_waiting_for_retry )
+            port.try_send_req ();
 
-        if ( nullptr == port._resp_buf
-                && port._is_peer_waiting_for_retry )
+        if ( nullptr == port.resp_buf
+                && port.is_peer_waiting_for_retry )
         {
-            port._is_peer_waiting_for_retry = false;
+            port.is_peer_waiting_for_retry = false;
             port.sendRetryResp ();
         }
     }
 }
 
-bool DuetEngine::_has_work () {
-    if ( _sri_port._req_buf || _sri_port._resp_buf )
+bool DuetEngine::has_work () {
+    if ( _sri_port.req_buf || _sri_port.resp_buf )
         return true;
 
     for ( auto & port : _mem_ports )
-        if ( port._req_buf || port._resp_buf )
+        if ( port.req_buf || port.resp_buf )
             return true;
 
     for ( auto & lane : _lanes )
@@ -258,7 +266,7 @@ bool DuetEngine::can_pull_from_chan (
     return false;
 }
 
-bool DuetEngine::_try_send_mem_req_one (
+bool DuetEngine::try_send_mem_req_one (
         uint16_t                    chan_id
         , DuetFunctor::mem_req_t    req
         , DuetFunctor::raw_data_t   data
@@ -266,7 +274,7 @@ bool DuetEngine::_try_send_mem_req_one (
 {
     // find a memory port whose req_buf is empty
     for ( auto & port : _mem_ports ) {
-        if ( nullptr == port._req_buf ) {
+        if ( nullptr == port.req_buf ) {
             // translate address
             Addr paddr;
             panic_if ( !_process->pTable->translate ( req.addr, paddr ),
@@ -317,12 +325,48 @@ bool DuetEngine::_try_send_mem_req_one (
                 panic ( "Invalid request type" );
             }
 
-            port._req_buf = pkt;
+            port.req_buf = pkt;
             return true;
         }
     }
 
     return false;
+}
+
+bool DuetEngine::handle_argchan_push (
+        DuetFunctor::caller_id_t    caller_id
+        , uint64_t                  value
+        )
+{
+    auto & chan = _chan_arg_by_id [caller_id];
+
+    if ( 0 == _fifo_capacity
+            || chan->size() < _fifo_capacity )
+    {
+        DuetFunctor::raw_data_t raw ( new uint8_t[8] );
+        memcpy ( raw.get(), &value, 8 );
+        chan->push_back ( raw );
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool DuetEngine::handle_retchan_pull (
+        DuetFunctor::caller_id_t    caller_id
+        , uint64_t                & value
+        )
+{
+    auto & chan = _chan_ret_by_id [caller_id];
+
+    if ( !chan->empty () ) {
+        auto raw = chan->front ();
+        chan->pop_front ();
+        memcpy ( &value, raw.get(), 8 );
+        return true;
+    } else {
+        return false;
+    }
 }
 
 Port & DuetEngine::getPort (
@@ -345,6 +389,20 @@ void DuetEngine::init () {
 
     if ( _sri_port.isConnected() )
         _sri_port.sendRangeChange ();
+
+    for ( DuetFunctor::caller_id_t i = 0; i < get_num_callers (); ++i ) {
+        _chan_arg_by_id.emplace_back ( new DuetFunctor::chan_data_t () );
+        _chan_ret_by_id.emplace_back ( new DuetFunctor::chan_data_t () );
+    }
+
+    for ( DuetFunctor::caller_id_t i = 0; i < get_num_memory_chans (); ++i) {
+        _chan_req_by_id.emplace_back   ( new DuetFunctor::chan_req_t () );
+        _chan_wdata_by_id.emplace_back ( new DuetFunctor::chan_data_t () );
+        _chan_rdata_by_id.emplace_back ( new DuetFunctor::chan_data_t () );
+    }
+
+    for ( DuetFunctor::caller_id_t i = 0; i < get_num_interlane_chans (); ++i)
+        _chan_int_by_id.emplace_back   ( new DuetFunctor::chan_data_t () );
 }
 
 }   // namespace duet

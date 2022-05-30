@@ -17,9 +17,7 @@ class DuetLane : public SimObject {
 // == Parameterized Member Variables =========================================
 // ===========================================================================
 protected:
-    DuetEngine        * _engine;
-    std::map <std::pair <DuetFunctor::stage_t, DuetFunctor::stage_t>
-        , Cycles>       _transition_latency;
+    DuetEngine        * engine;
 
 // ===========================================================================
 // == API for subclesses =====================================================
@@ -27,11 +25,11 @@ protected:
 public:
     DuetLane ( const DuetLaneParams & p );
 
+// ===========================================================================
+// == Virtual Methods ========================================================
+// ===========================================================================
 protected:
-    Cycles _get_latency (
-            DuetFunctor::stage_t    prev
-            , DuetFunctor::stage_t  next
-            );
+    virtual DuetFunctor * new_functor () = 0;
 
 // ===========================================================================
 // == API for DuetFunctor ====================================================
@@ -61,7 +59,7 @@ public:
      */
     virtual bool has_work () = 0;
 
-    void set_engine ( DuetEngine * engine ) { _engine = engine; }
+    void set_engine ( DuetEngine * e ) { engine = e; }
 };
 
 }   // namespace gem5

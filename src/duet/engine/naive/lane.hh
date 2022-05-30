@@ -12,10 +12,10 @@ private:
     DuetFunctor::caller_id_t    _next_caller_roundrobin;
 
 protected:
-    DuetFunctor * _new_functor () override final;
+    DuetFunctor * new_functor () override final;
 
 public:
-    NaiveLane ( const DuetLaneParams & p );
+    NaiveLane ( const DuetSimpleLaneParams & p );
 };
 
 }   // namespace duet

@@ -15,11 +15,11 @@ protected:
     /* Port to upstream */
     class UpstreamPort : public ResponsePort {
     public:
-        DuetClockedObject * _owner;
-        bool                _is_peer_waiting_for_retry;
-        bool                _is_this_waiting_for_retry;
-        PacketPtr           _req_buf;
-        PacketPtr           _resp_buf;
+        DuetClockedObject * owner;
+        bool                is_peer_waiting_for_retry;
+        bool                is_this_waiting_for_retry;
+        PacketPtr           req_buf;
+        PacketPtr           resp_buf;
 
     public:
         UpstreamPort ( const std::string & name
@@ -27,11 +27,11 @@ protected:
                 , PortID id = InvalidPortID
                 )
             : ResponsePort                  ( name, owner, id )
-            , _owner                        ( owner )
-            , _is_peer_waiting_for_retry    ( false )
-            , _is_this_waiting_for_retry    ( false )
-            , _req_buf                      ( nullptr )
-            , _resp_buf                     ( nullptr )
+            , owner                         ( owner )
+            , is_peer_waiting_for_retry     ( false )
+            , is_this_waiting_for_retry     ( false )
+            , req_buf                       ( nullptr )
+            , resp_buf                      ( nullptr )
         {}
 
         Tick recvAtomic ( PacketPtr pkt ) override {
@@ -41,17 +41,17 @@ protected:
     public:
         virtual bool recvTimingReq ( PacketPtr pkt ) override final;
         virtual void recvRespRetry () override final;
-                void _try_send_resp ();
+                void try_send_resp ();
     };
 
     /* Port to downstream */
     class DownstreamPort : public RequestPort {
     public:
-        DuetClockedObject * _owner;
-        bool                _is_peer_waiting_for_retry;
-        bool                _is_this_waiting_for_retry;
-        PacketPtr           _req_buf;
-        PacketPtr           _resp_buf;
+        DuetClockedObject * owner;
+        bool                is_peer_waiting_for_retry;
+        bool                is_this_waiting_for_retry;
+        PacketPtr           req_buf;
+        PacketPtr           resp_buf;
 
     public:
         DownstreamPort ( const std::string & name
@@ -59,17 +59,17 @@ protected:
                 , PortID id = InvalidPortID
                 )
             : RequestPort                   ( name, owner, id )
-            , _owner                        ( owner )
-            , _is_peer_waiting_for_retry    ( false )
-            , _is_this_waiting_for_retry    ( false )
-            , _req_buf                      ( nullptr )
-            , _resp_buf                     ( nullptr )
+            , owner                         ( owner )
+            , is_peer_waiting_for_retry     ( false )
+            , is_this_waiting_for_retry     ( false )
+            , req_buf                       ( nullptr )
+            , resp_buf                      ( nullptr )
         {}
 
     public:
         virtual bool recvTimingResp ( PacketPtr pkt ) override final;
         virtual void recvReqRetry () override final;
-                void _try_send_req ();
+                void try_send_req ();
     };
 
 private:
@@ -80,14 +80,17 @@ private:
 private:
     void _do_cycle ();
 
-protected:
-    void _wakeup ();
-    bool _is_update_phase () const { return curCycle() >= _latest_cycle_plus1; }
-    bool _is_exchange_phase () const { return curCycle() < _latest_cycle_plus1; }
+    // API for UpstreamPort/DownstreamPort
+    bool is_sleeping () const { return _is_sleeping; }
+    bool is_update_phase () const { return curCycle() >= _latest_cycle_plus1; }
+    bool is_exchange_phase () const { return curCycle() < _latest_cycle_plus1; }
 
-    virtual void _update () {};
-    virtual void _exchange () {};
-    virtual bool _has_work () = 0;
+protected:
+    void wakeup ();
+
+    virtual void update () {};
+    virtual void exchange () {};
+    virtual bool has_work () = 0;
 
 public:
     DuetClockedObject ( const DuetClockedObjectParams & p )

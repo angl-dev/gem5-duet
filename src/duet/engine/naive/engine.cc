@@ -4,83 +4,56 @@
 namespace gem5 {
 namespace duet {
 
-NaiveEngine::NaiveEngine ( const DuetEngineParams & p )
-    : DuetEngine ( p )
-{
-    for ( DuetFunctor::caller_id_t i = 0; i < _num_callers; ++i ) {
-        _chan_arg_by_id.emplace ( i, new DuetFunctor::chan_data_t () );
-        _chan_ret_by_id.emplace ( i, new DuetFunctor::chan_data_t () );
-    }
-
-    _chan_req_by_id.emplace   ( 0, new DuetFunctor::chan_req_t () );
-    _chan_wdata_by_id.emplace ( 0, new DuetFunctor::chan_data_t () );
-    _chan_rdata_by_id.emplace ( 0, new DuetFunctor::chan_data_t () );
+DuetEngine::softreg_id_t NaiveEngine::get_num_softregs () const {
+    return get_num_callers ();
 }
 
-DuetEngine::softreg_id_t NaiveEngine::_get_num_softregs () const {
-    return _num_callers;
+DuetFunctor::caller_id_t NaiveEngine::get_num_memory_chans () const {
+    return 1;
 }
 
-bool NaiveEngine::_handle_softreg_write (
+bool NaiveEngine::handle_softreg_write (
         DuetEngine::softreg_id_t    softreg_id
         , uint64_t                  value
         )
 {
-    auto & chan = _chan_arg_by_id[softreg_id];
-
-    if ( 0 == _fifo_capacity
-            || chan->size() < _fifo_capacity )
-    {
-        DuetFunctor::raw_data_t raw ( new uint8_t[8] );
-        memcpy ( raw.get(), &value, 8 );
-        chan->push_back ( raw );
-        return true;
-    } else {
-        return false;
-    }
+    return handle_argchan_push ( softreg_id, value );
 }
 
-bool NaiveEngine::_handle_softreg_read (
+bool NaiveEngine::handle_softreg_read (
         DuetEngine::softreg_id_t    softreg_id
         , uint64_t                & value
         )
 {
-    auto & chan = _chan_ret_by_id[softreg_id];
-
-    if ( !chan->empty () ) {
-        auto raw = chan->front ();
-        chan->pop_front ();
-        memcpy ( &value, raw.get(), 8 );
-        return true;
-    } else {
-        return false;
-    }
+    return handle_retchan_pull ( softreg_id, value );
 }
 
-void NaiveEngine::_try_send_mem_req_all () {
-    auto & chan = _chan_req_by_id [0];
-    if ( chan->empty () )
+void NaiveEngine::try_send_mem_req_all () {
+    DuetFunctor::chan_id_t id = { DuetFunctor::chan_id_t::REQ, 0 };
+    auto & chan = get_chan_req ( id );
+    if ( chan.empty () )
         return;
 
-    auto req = chan->front ();
+    auto req = chan.front ();
     DuetFunctor::raw_data_t data;
 
     switch ( req.type ) {
     case DuetFunctor::REQTYPE_LD:
-        if ( _try_send_mem_req_one ( 0, req, data ) )
-            chan->pop_front ();
+        if ( try_send_mem_req_one ( 0, req, data ) )
+            chan.pop_front ();
         break;
 
     case DuetFunctor::REQTYPE_ST:
         {
-            auto & datachan = _chan_wdata_by_id [0];
-            if ( datachan->empty () )
+            id.tag = DuetFunctor::chan_id_t::WDATA;
+            auto & datachan = get_chan_data ( id );
+            if ( datachan.empty () )
                 return;
 
-            data = datachan->front ();
-            if ( _try_send_mem_req_one ( 0, req, data ) ) {
-                chan->pop_front ();
-                datachan->pop_front ();
+            data = datachan.front ();
+            if ( try_send_mem_req_one ( 0, req, data ) ) {
+                chan.pop_front ();
+                datachan.pop_front ();
             }
         }
         break;
@@ -106,24 +79,6 @@ void NaiveEngine::_try_send_mem_req_all () {
 
     default :
         panic ( "Invalid request type" );
-    }
-}
-
-bool NaiveEngine::_try_recv_mem_resp_one (
-        uint16_t                    chan_id
-        , DuetFunctor::raw_data_t   data
-        )
-{
-    assert ( 0 == chan_id );
-    auto & chan = _chan_rdata_by_id [0];
-
-    if ( 0 == _fifo_capacity
-            || chan->size () < _fifo_capacity )
-    {
-        chan->push_back ( data );
-        return true;
-    } else {
-        return false;
     }
 }
 

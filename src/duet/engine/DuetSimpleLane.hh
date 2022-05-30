@@ -1,6 +1,7 @@
 #ifndef __DUET_SIMPLE_LANE_HH
 #define __DUET_SIMPLE_LANE_HH
 
+#include "params/DuetSimpleLane.hh"
 #include "duet/engine/DuetLane.hh"
 
 namespace gem5 {
@@ -11,21 +12,20 @@ protected:
     std::unique_ptr <DuetFunctor>   _functor;
     Cycles                          _remaining;
 
+    std::map <std::pair <DuetFunctor::stage_t, DuetFunctor::stage_t>
+        , Cycles>       _transition_latency;
+
 // ===========================================================================
 // == API for subclesses =====================================================
 // ===========================================================================
 public:
-    DuetSimpleLane ( const DuetLaneParams & p )
-        : DuetLane      ( p )
-        , _functor      ( nullptr )
-        , _remaining    ( 0 )
-    {}
+    DuetSimpleLane ( const DuetSimpleLaneParams & p );
 
-// ===========================================================================
-// == Virtual Methods ========================================================
-// ===========================================================================
 protected:
-    virtual DuetFunctor * _new_functor () = 0;
+    Cycles get_latency (
+            DuetFunctor::stage_t    prev
+            , DuetFunctor::stage_t  next
+            );
 
 // ===========================================================================
 // == Implementing virtual methods ===========================================

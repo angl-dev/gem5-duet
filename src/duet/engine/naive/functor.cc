@@ -21,23 +21,21 @@ void NaiveFunctor::setup () {
 void NaiveFunctor::run () {
     // load argument
     uintptr_t addr;
-    dequeue_data ( 1, *chan_arg, addr );
+    dequeue_data ( *chan_arg, addr );
 
     // send load request
-    request_load <uint64_t> ( 2, *chan_req, addr );
+    enqueue_req ( *chan_req, make_load_req <uint64_t> (addr) );
 
     // get response data
     uint64_t data;
-    dequeue_data ( 3, *chan_rdata, data );
+    dequeue_data ( *chan_rdata, data );
 
     // do some computation
     data += 1;
 
     // send store request
-    request_store (
-            4 /* auto-generate stage 5 */,
-            *chan_req, *chan_wdata,
-            addr, data );
+    enqueue_data ( *chan_wdata, data );
+    enqueue_req ( *chan_req, make_store_req <uint64_t> (addr) );
 }
 
 }   // namespace duet

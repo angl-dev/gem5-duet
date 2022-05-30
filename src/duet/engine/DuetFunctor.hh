@@ -64,7 +64,21 @@ public:
         , RETCODE_RUNNING = 0           // functor still running
     } retcode_t;
 
-    typedef uint32_t    stage_t;
+// ===========================================================================
+// == API for subclasses (GEM5 & HLS) ========================================
+// ===========================================================================
+protected:
+    template <typename T_data>
+    static mem_req_t make_load_req ( uintptr_t addr ) {
+        mem_req_t req = { REQTYPE_LD, sizeof (T_data), addr };
+        return req;
+    }
+
+    template <typename T_data>
+    static mem_req_t make_store_req ( uintptr_t addr ) {
+        mem_req_t req = { REQTYPE_ST, sizeof (T_data), addr };
+        return req;
+    }
 
 #ifdef __DUET_HLS
 // ===========================================================================
@@ -84,8 +98,7 @@ protected:
      *  Enqueue a memory request to the specified channel
      */
     void enqueue_req (
-            stage_t                 stage   // ignored
-            , chan_req_t &          chan
+            chan_req_t &            chan
             , const mem_req_t &     req
             )
     {
@@ -111,8 +124,7 @@ protected:
      */
     template <typename T_chan, typename T_data>
     void enqueue_data (
-            stage_t                 stage   // ignored
-            , ac_channel<T_chan> &  chan
+            ac_channel<T_chan> &    chan
             , const T_data &        data
             )
     {
@@ -136,8 +148,7 @@ protected:
      */
     template <typename T_chan, typename T_data>
     void dequeue_data (
-            stage_t                 stage   // ignored
-            , ac_channel<T_chan> &  chan
+            ac_channel<T_chan> &    chan
             , T_data &              data
             )
     {
@@ -146,32 +157,6 @@ protected:
         ac_int <bitwidth, false> raw = packed.slc<bitwidth>(0);
         uint64_t plain = raw.to_uint64();
         data = *( reinterpret_cast <T_data*> (&plain) );
-    }
-
-    template <typename T_data>
-    void request_load (
-            stage_t                 stage   // ignored
-            , chan_req_t &          chan
-            , uintptr_t             addr
-            )
-    {
-        mem_req_t req = { REQTYPE_LD, sizeof (T_data), addr };
-        enqueue_req ( stage, chan, req );
-    }
-
-    template <typename T_chan, typename T_data>
-    void request_store (
-            stage_t                 stage   // ignored
-            , chan_req_t &          chan_req
-            , ac_channel<T_chan> &  chan_wdata
-            , uintptr_t             addr
-            , T_data                data
-            )
-    {
-        enqueue_data ( stage, chan_wdata, data );
-
-        mem_req_t req = { REQTYPE_ST, sizeof (T_data), addr };
-        enqueue_req ( stage + 1, chan_req, req );
     }
 
 #else /* ifdef __DUET_HLS */
@@ -184,10 +169,10 @@ public:
 
     typedef struct _chan_id_t {
         enum : uint8_t {
-            INVALID = 0,             // invalid tag
-            REQ = 0, WDATA, RDATA,   // memory channels
-            ARG, RET,                // ABI channels
-            PULL, PUSH               // inter-lane channels
+            INVALID = 0,            // invalid tag
+            REQ, WDATA, RDATA,      // memory channels
+            ARG, RET,               // ABI channels
+            PULL, PUSH              // inter-lane channels
         }                           tag;
 
         // caller ID for ARG/RET channels, or channel ID for other channels
@@ -201,6 +186,8 @@ public:
 
     typedef std::list <mem_req_t>   chan_req_t;
     typedef std::list <raw_data_t>  chan_data_t;
+
+    typedef uint32_t    stage_t;
 
 // ===========================================================================
 // == Member Variables (GEM5) ================================================
@@ -273,12 +260,17 @@ protected:
     chan_req_t &  get_chan_req  ( chan_id_t id );
     chan_data_t & get_chan_data ( chan_id_t id );
 
+    // Use preprocessor tricks to automate stage annotation
+    #define enqueue_req(chan, req) _enqueue_req    ( (__COUNTER__ + 1), (chan), (req) )
+    #define enqueue_data(chan, data) _enqueue_data ( (__COUNTER__ + 1), (chan), (data) )
+    #define dequeue_data(chan, data) _dequeue_data ( (__COUNTER__ + 1), (chan), (data) )
+
     /*
      * enqueue_req:
      *
      *  Enqueue a memory request to the specified channel
      */
-    void enqueue_req (
+    void _enqueue_req (
             stage_t                 stage
             , chan_req_t &          chan
             , const mem_req_t &     req
@@ -302,7 +294,7 @@ protected:
      *  Enqueue a data element to the specified channel
      */
     template <typename T>
-    void enqueue_data (
+    void _enqueue_data (
             stage_t                 stage
             , chan_data_t &         chan
             , const T &             data
@@ -328,7 +320,7 @@ protected:
      *  Dequeue a data element from the specified channel
      */
     template <typename T>
-    void dequeue_data (
+    void _dequeue_data (
             stage_t                 stage
             , chan_data_t &         chan
             , T &                   data
@@ -346,37 +338,6 @@ protected:
         raw_data_t data_ = chan.front ();
         chan.pop_front ();
         memcpy ( &data, data_.get(), sizeof(T) );
-    }
-
-    /*
-     * request_load:
-     *
-     *  Send a load request to the specified address, thru the specified channel
-     */
-    template <typename T_data>
-    void request_load (
-            stage_t                 stage   // ignored
-            , chan_req_t &          chan
-            , uintptr_t             addr
-            )
-    {
-        mem_req_t req = { REQTYPE_LD, sizeof (T_data), addr };
-        enqueue_req ( stage, chan, req );
-    }
-
-    template <typename T_data>
-    void request_store (
-            stage_t                 stage   // ignored
-            , chan_req_t &          chan_req
-            , chan_data_t &         chan_wdata
-            , uintptr_t             addr
-            , T_data                data
-            )
-    {
-        enqueue_data ( stage, chan_wdata, data );
-
-        mem_req_t req = { REQTYPE_ST, sizeof (T_data), addr };
-        enqueue_req ( stage + 1, chan_req, req );
     }
 
 // ===========================================================================
