@@ -5,15 +5,49 @@
 #include <sys/mman.h>
 #include <errno.h>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 #include <memory>
 
+std::mutex                  m;
+std::condition_variable     cv;
+constexpr const unsigned    num_threads = 3;
+constexpr const unsigned    total_work = 64 * num_threads;
+unsigned                    cnt = 0;
+
 void task (
-        volatile uint64_t * ptr_softreg
-        , volatile uint64_t * ptr_arg
+        unsigned tid
+        , volatile uint64_t * ptr_softreg
+        , volatile uint64_t * pdata
         )
 {
-    *ptr_softreg = reinterpret_cast<uint64_t> (ptr_arg);
-    while ( 0 == *ptr_softreg );
+    {
+        std::unique_lock lock ( m );
+
+        if ( ++cnt == num_threads ) {
+            lock.unlock ();
+            cv.notify_all ();
+        } else {
+            cv.wait ( lock, []{ return cnt == num_threads; });
+        }
+    }
+
+    for ( unsigned i = tid; i < total_work; i += num_threads )
+        *ptr_softreg = reinterpret_cast<uint64_t> ( pdata + i );
+
+    {
+        std::unique_lock lock ( m );
+
+        if ( --cnt == 0 ) {
+            lock.unlock ();
+            cv.notify_all ();
+        } else {
+            cv.wait ( lock, []{ return cnt == 0; });
+        }
+    }
+
+    for ( unsigned i = tid; i < total_work; i += num_threads )
+        while ( 0 == *ptr_softreg );
 }
 
 int main(int argc, char *argv[]) {
@@ -26,7 +60,6 @@ int main(int argc, char *argv[]) {
     }
 
     // unsigned num_threads = std::thread::hardware_concurrency ();
-    unsigned num_threads = 4;
     printf ( "HW concurrency = %u\n", std::thread::hardware_concurrency () );
 
     volatile uint64_t * vaddr = static_cast<uint64_t *> (
@@ -37,24 +70,23 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    auto data = std::make_unique<volatile uint64_t[]>(num_threads);
-    printf ( "&data = 0x%p\n", data.get() );
-    for ( size_t i = 0; i < num_threads; ++i ) {
+    auto data = std::make_unique<volatile uint64_t[]>(total_work);
+    for ( unsigned i = 0; i < total_work; ++i ) {
         data[i] = (i + 1) * (i + 1);
     }
 
     auto threads = std::make_unique<std::thread[]>(num_threads);
-    for ( size_t i = 0; i < num_threads; ++i ) {
-        std::thread tmp ( task, vaddr + i, data.get() + i );
+    for ( unsigned i = 0; i < num_threads; ++i ) {
+        std::thread tmp ( task, i, vaddr + i, data.get() );
         std::swap ( threads[i], tmp );
     }
 
-    for ( size_t i = 0; i < num_threads; ++i ) {
+    for ( unsigned i = 0; i < num_threads; ++i ) {
         threads[i].join();
     }
     
     bool mismatch = false;
-    for ( size_t i = 0; i < num_threads; ++i ) {
+    for ( unsigned i = 0; i < total_work; ++i ) {
         uint64_t ref = (i + 1) * (i + 1) + 1;
         if ( data[i] != ref ) {
             mismatch = true;

@@ -261,9 +261,9 @@ protected:
     chan_data_t & get_chan_data ( chan_id_t id );
 
     // Use preprocessor tricks to automate stage annotation
-    #define enqueue_req(chan, req) _enqueue_req    ( (__COUNTER__ + 1), (chan), (req) )
-    #define enqueue_data(chan, data) _enqueue_data ( (__COUNTER__ + 1), (chan), (data) )
-    #define dequeue_data(chan, data) _dequeue_data ( (__COUNTER__ + 1), (chan), (data) )
+    #define enqueue_req(chan, req) _enqueue_req    ( __COUNTER__, (chan), (req) )
+    #define enqueue_data(chan, data) _enqueue_data ( __COUNTER__, (chan), (data) )
+    #define dequeue_data(chan, data) _dequeue_data ( __COUNTER__, (chan), (data) )
 
     /*
      * enqueue_req:
@@ -364,9 +364,9 @@ public:
     virtual void setup () = 0;
 
     /*
-     * use_explicit_retcode:
+     * use_default_retcode:
      */
-    virtual bool use_explicit_retcode () { return false; }
+    virtual bool use_default_retcode () const { return false; }
 
 protected:
     /*

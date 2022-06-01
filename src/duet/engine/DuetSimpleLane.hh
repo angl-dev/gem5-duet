@@ -21,12 +21,6 @@ protected:
 public:
     DuetSimpleLane ( const DuetSimpleLaneParams & p );
 
-protected:
-    Cycles get_latency (
-            DuetFunctor::stage_t    prev
-            , DuetFunctor::stage_t  next
-            );
-
 // ===========================================================================
 // == Implementing virtual methods ===========================================
 // ===========================================================================

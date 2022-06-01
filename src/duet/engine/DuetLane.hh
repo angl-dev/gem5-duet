@@ -25,6 +25,9 @@ protected:
 public:
     DuetLane ( const DuetLaneParams & p );
 
+protected:
+    bool push_default_retcode ( DuetFunctor::caller_id_t caller_id );
+
 // ===========================================================================
 // == Virtual Methods ========================================================
 // ===========================================================================

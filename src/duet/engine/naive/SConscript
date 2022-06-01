@@ -1,7 +1,8 @@
 Import('*')
 
-SimObject('DuetNaive.py', sim_objects=['NaiveLane', 'NaiveEngine'])
+SimObject('DuetNaive.py', sim_objects=['NaiveLane', 'NaivePipelinedLane', 'NaiveEngine'])
 
 Source('functor.cc')
 Source('lane.cc')
+Source('ppllane.cc')
 Source('engine.cc')

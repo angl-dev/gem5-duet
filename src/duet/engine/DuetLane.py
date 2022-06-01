@@ -19,11 +19,11 @@ class DuetSimpleLane (DuetLane):
     transition_to_stage     = VectorParam.UInt32 ( "To stages ..." )
     transition_latency      = VectorParam.Cycles ( "Latency ..." )
 
-# class DuetPipelinedLane (DuetLane):
-#     type                    = "DuetPipelinedLane"
-#     cxx_class               = "gem5::duet::DuetPipelinedLane"
-#     cxx_header              = "duet/engine/DuetPipelinedLane.hh"
-# 
-#     # latency/interval for stage 1 -- N
-#     latency                 = VectorParam.Cycles ( "Latency ..." )
-#     initiation_interval     = VectorParam.Cycles ( "II ..." )
+class DuetPipelinedLane (DuetLane):
+    type                    = "DuetPipelinedLane"
+    cxx_class               = "gem5::duet::DuetPipelinedLane"
+    cxx_header              = "duet/engine/DuetPipelinedLane.hh"
+    abstract                = True
+
+    latency                 = VectorParam.Cycles ( "Latency of each stage" )
+    interval                = Param.Cycles       ( 1, "Initiation invertal" )

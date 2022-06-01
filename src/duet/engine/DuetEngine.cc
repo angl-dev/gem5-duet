@@ -363,10 +363,11 @@ bool DuetEngine::handle_retchan_pull (
         auto raw = chan->front ();
         chan->pop_front ();
         memcpy ( &value, raw.get(), 8 );
-        return true;
     } else {
-        return false;
+        value = DuetFunctor::RETCODE_RUNNING;
     }
+
+    return true;
 }
 
 Port & DuetEngine::getPort (

@@ -24,6 +24,8 @@ public:
     ~NaiveFunctor () {}
 
     void setup () override final;
+
+    bool use_default_retcode () const override final { return true; }
 };
 
 }   // namespace duet

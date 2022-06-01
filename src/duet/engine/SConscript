@@ -1,9 +1,13 @@
 Import('*')
 
 SimObject('DuetEngine.py', sim_objects=['DuetEngine'])
-SimObject('DuetLane.py', sim_objects=['DuetLane', 'DuetSimpleLane'])
+SimObject('DuetLane.py', sim_objects=['DuetLane', 'DuetSimpleLane', 'DuetPipelinedLane'])
 
 Source('DuetFunctor.cc')
 Source('DuetLane.cc')
 Source('DuetSimpleLane.cc')
+Source('DuetPipelinedLane.cc')
 Source('DuetEngine.cc')
+
+DebugFlag('DuetEngine')
+DebugFlag('DuetEngineDetailed')
