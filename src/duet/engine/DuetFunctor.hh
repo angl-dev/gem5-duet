@@ -1,33 +1,20 @@
 #ifndef __DUET_FUNCTOR_HH
 #define __DUET_FUNCTOR_HH
 
-/*
- * Use ` #define __DUET_HLS ' in HLS environments
- */
+#include <stdint.h>
+#include <string.h>
+#include <list>
+#include <map>
+#include <utility>
+#include <memory>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
-#ifdef __DUET_HLS
-    #include <stdint.h>
-    #include <ac_int.h>
-    #include <ac_channel.h>
-
-#else /* #ifdef __DUET_HLS */
-    #include <stdint.h>
-    #include <string.h>
-    #include <list>
-    #include <map>
-    #include <utility>
-    #include <memory>
-    #include <thread>
-    #include <mutex>
-    #include <condition_variable>
-
-    namespace gem5 {
-    namespace duet {
+namespace gem5 {
+namespace duet {
 
 class DuetLane;
-
-#endif /* #ifdef __DUET_HLS */
-
 class DuetFunctor {
 public:
 // ===========================================================================
@@ -51,12 +38,6 @@ public:
         , REQTYPE_FENCE
     } mem_req_type_t;
 
-    typedef struct _mem_req_t {
-        mem_req_type_t  type;
-        uint8_t         size;       // number of bytes
-        uintptr_t       addr;       // up to 48bit!
-    } mem_req_t;
-
     typedef enum _retcode_t : uint64_t {
         RETCODE_DEFAULT = uint64_t(-1)  // functor returned without explicitly
                                         // setting the return code. Simlar to
@@ -65,107 +46,37 @@ public:
     } retcode_t;
 
 // ===========================================================================
-// == API for subclasses (GEM5 & HLS) ========================================
+// == GEM5-specific types ====================================================
 // ===========================================================================
 protected:
-    template <typename T_data>
-    static mem_req_t make_load_req ( uintptr_t addr ) {
-        mem_req_t req = { REQTYPE_LD, sizeof (T_data), addr };
-        return req;
-    }
+    typedef bool                Bool;
+    typedef uint8_t             U8;
+    typedef int8_t              S8;
+    typedef uint16_t            U16;
+    typedef int16_t             S16;
+    typedef uint32_t            U32;
+    typedef int32_t             S32;
+    typedef uint64_t            U64;
+    typedef int64_t             S64;
+    typedef unsigned int        UInt;
+    typedef int                 Int;
+    typedef float               Float;
+    typedef double              Double;
+    typedef uintptr_t           addr_t;
 
-    template <typename T_data>
-    static mem_req_t make_store_req ( uintptr_t addr ) {
-        mem_req_t req = { REQTYPE_ST, sizeof (T_data), addr };
-        return req;
-    }
-
-#ifdef __DUET_HLS
-// ===========================================================================
-// == Types that are only visible to HLS =====================================
-// ===========================================================================
-protected:
-    typedef ac_int<64, false>               packed_mem_req_t;
-    typedef ac_channel<packed_mem_req_t>    chan_req_t;
-
-// ===========================================================================
-// == API for subclasses (HLS) ===============================================
-// ===========================================================================
-protected:
-    /*
-     * enqueue_req:
-     *
-     *  Enqueue a memory request to the specified channel
-     */
-    void enqueue_req (
-            chan_req_t &            chan
-            , const mem_req_t &     req
-            )
-    {
-        packed_mem_req_t data;
-        ac_int <8, false> byte;
-
-        byte = req.type;
-        data.set_slc <8> (0, byte);
-
-        byte = req.size;
-        data.set_slc <8> (8, byte);
-
-        ac_int <48, false> addr = req.addr;
-        data.set_slc <48> (16, addr);
-
-        chan.write ( req );
-    }
-
-    /*
-     * enqueue_data:
-     *
-     *  Enqueue a data element to the specified channel
-     */
-    template <typename T_chan, typename T_data>
-    void enqueue_data (
-            ac_channel<T_chan> &    chan
-            , const T_data &        data
-            )
-    {
-        static constexpr size_t const bitwidth = sizeof(T_data) * 8;
-        ac_int <bitwidth, false> raw = data;
-
-        T_chan packed;
-
-        // replicate data
-        for ( int i = 0; i < T_chan::width; i += bitwidth ) {
-            packed.set_slc <bitwidth> ( i, raw );
-        }
-
-        chan.write ( packed );
-    }
-
-    /*
-     * dequeue_data:
-     *
-     *  Dequeue a data element from the specified channel
-     */
-    template <typename T_chan, typename T_data>
-    void dequeue_data (
-            ac_channel<T_chan> &    chan
-            , T_data &              data
-            )
-    {
-        static constexpr size_t const bitwidth = sizeof(T_data) * 8;
-        T_chan packed = chan.read ();
-        ac_int <bitwidth, false> raw = packed.slc<bitwidth>(0);
-        uint64_t plain = raw.to_uint64();
-        data = *( reinterpret_cast <T_data*> (&plain) );
-    }
-
-#else /* ifdef __DUET_HLS */
 public:
-// ===========================================================================
-// == Types that are only visible to GEM5 ====================================
-// ===========================================================================
     typedef std::shared_ptr<uint8_t[]>  raw_data_t;
     typedef uint16_t                    caller_id_t;
+    typedef uint32_t                    stage_t;
+
+    typedef struct _mem_req_t {
+        mem_req_type_t  type;
+        size_t          size;       // number of bytes
+        addr_t          addr;
+    } mem_req_t;
+
+    typedef std::list <mem_req_t>       chan_req_t;
+    typedef std::list <raw_data_t>      chan_data_t;
 
     typedef struct _chan_id_t {
         enum : uint8_t {
@@ -179,22 +90,103 @@ public:
         caller_id_t                 id;
 
         // define comparator so this struct can be used as map key
-        bool operator< ( const _chan_id_t & other ) const {
-            return tag < other.tag || id < other.id;
-        }
+        // bool operator< ( const _chan_id_t & other ) const {
+        //     return tag < other.tag || id < other.id;
+        // }
     } chan_id_t;
 
-    typedef std::list <mem_req_t>   chan_req_t;
-    typedef std::list <raw_data_t>  chan_data_t;
+// ===========================================================================
+// == API for subclasses =====================================================
+// ===========================================================================
+protected:
+    // Use preprocessor tricks to automate stage annotation
+    #define enqueue_req(chan, type, size, addr) _enqueue_req  ( __COUNTER__, (chan), (type), (size), (addr) )
+    #define enqueue_data(chan, data)            _enqueue_data ( __COUNTER__, (chan), (data) )
+    #define dequeue_data(chan, data)            _dequeue_data ( __COUNTER__, (chan), (data) )
 
-    typedef uint32_t    stage_t;
+    /* -----------------------------------------------------------------------
+     * enqueue_req:
+     *  Enqueue a memory request to the specified channel
+     * -------------------------------------------------------------------- */
+    void _enqueue_req (
+            stage_t             stage
+            , chan_req_t &      chan
+            , mem_req_type_t    type
+            , size_t            size
+            , addr_t            addr
+            )
+    {
+        // update state
+        _stage              = stage;
+        _blocking_chan_id   = _id_by_chan [
+            reinterpret_cast <void *> (&chan) ];
+
+        // transfer control back to the main thread
+        _yield ();
+
+        // resume execution
+        mem_req_t req = { type, size, addr };
+        chan.push_back ( req );
+    }
+
+    /* -----------------------------------------------------------------------
+     * enqueue_data:
+     *  Enqueue a data element to the specified channel
+     * -------------------------------------------------------------------- */
+    template <typename T>
+    void _enqueue_data (
+            stage_t             stage
+            , chan_data_t &     chan
+            , const T &         data
+            )
+    {
+        // update state
+        _stage              = stage;
+        _blocking_chan_id   = _id_by_chan [
+            reinterpret_cast <void *> (&chan) ];
+
+        // transfer control back to the main thread
+        _yield ();
+
+        // resume execution
+        raw_data_t packed ( new uint8_t [sizeof(data)] );
+        memcpy ( packed.get(), &data, sizeof(data) );
+        chan.push_back ( packed );
+    }
+
+    /* -----------------------------------------------------------------------
+     * dequeue_data:
+     *  Dequeue a data element from the specified channel
+     * -------------------------------------------------------------------- */
+    template <typename T>
+    void _dequeue_data (
+            stage_t             stage
+            , chan_data_t &     chan
+            , T &               data
+            )
+    {
+        // update state
+        _stage              = stage;
+        _blocking_chan_id   = _id_by_chan [
+            reinterpret_cast <void *> (&chan) ];
+
+        // transfer control back to the main thread
+        _yield ();
+
+        // resume execution
+        raw_data_t data_ = chan.front ();
+        chan.pop_front ();
+        memcpy ( &data, data_.get(), sizeof(T) );
+    }
 
 // ===========================================================================
 // == Member Variables (GEM5) ================================================
 // ===========================================================================
+protected:
+    DuetLane                              * lane;
+    caller_id_t                             caller_id;
+
 private:
-    DuetLane                              * _lane;
-    caller_id_t                             _caller_id;
     chan_id_t                               _blocking_chan_id;
     stage_t                                 _stage;
     bool                                    _is_functors_turn;
@@ -237,7 +229,7 @@ public:
     bool advance ();
 
     /* [Getter] get_caller_id: */
-    caller_id_t get_caller_id () const { return _caller_id; }
+    caller_id_t get_caller_id () const { return caller_id; }
 
     /* [Getter] get_stage: */
     stage_t get_stage () const { return _stage; }
@@ -247,98 +239,6 @@ public:
 
     /* [Getter] is_done */
     bool is_done () const { return _is_done; }
-
-// ===========================================================================
-// == API for subclasses (GEM5) ==============================================
-// ===========================================================================
-protected:
-    /*
-     * get_chan_req & get_chan_data:
-     *
-     *  Get or create a channel, remember the channel->id mapping as well
-     */
-    chan_req_t &  get_chan_req  ( chan_id_t id );
-    chan_data_t & get_chan_data ( chan_id_t id );
-
-    // Use preprocessor tricks to automate stage annotation
-    #define enqueue_req(chan, req) _enqueue_req    ( __COUNTER__, (chan), (req) )
-    #define enqueue_data(chan, data) _enqueue_data ( __COUNTER__, (chan), (data) )
-    #define dequeue_data(chan, data) _dequeue_data ( __COUNTER__, (chan), (data) )
-
-    /*
-     * enqueue_req:
-     *
-     *  Enqueue a memory request to the specified channel
-     */
-    void _enqueue_req (
-            stage_t                 stage
-            , chan_req_t &          chan
-            , const mem_req_t &     req
-            )
-    {
-        // update state
-        _stage              = stage;
-        _blocking_chan_id   = _id_by_chan [
-            reinterpret_cast <void *> (&chan) ];
-
-        // transfer control back to the main thread
-        _yield ();
-
-        // resume execution
-        chan.push_back ( req );
-    }
-
-    /*
-     * enqueue_data:
-     *
-     *  Enqueue a data element to the specified channel
-     */
-    template <typename T>
-    void _enqueue_data (
-            stage_t                 stage
-            , chan_data_t &         chan
-            , const T &             data
-            )
-    {
-        // update state
-        _stage              = stage;
-        _blocking_chan_id   = _id_by_chan [
-            reinterpret_cast <void *> (&chan) ];
-
-        // transfer control back to the main thread
-        _yield ();
-
-        // resume execution
-        raw_data_t packed ( new uint8_t [sizeof(data)] );
-        memcpy ( packed.get(), &data, sizeof(data) );
-        chan.push_back ( packed );
-    }
-
-    /*
-     * dequeue_data:
-     *
-     *  Dequeue a data element from the specified channel
-     */
-    template <typename T>
-    void _dequeue_data (
-            stage_t                 stage
-            , chan_data_t &         chan
-            , T &                   data
-            )
-    {
-        // update state
-        _stage              = stage;
-        _blocking_chan_id   = _id_by_chan [
-            reinterpret_cast <void *> (&chan) ];
-
-        // transfer control back to the main thread
-        _yield ();
-
-        // resume execution
-        raw_data_t data_ = chan.front ();
-        chan.pop_front ();
-        memcpy ( &data, data_.get(), sizeof(T) );
-    }
 
 // ===========================================================================
 // == Internal API (GEM5) ====================================================
@@ -351,6 +251,15 @@ private:
      */
     void _yield ( bool wait = true );
 
+protected:
+    /*
+     * get_chan_req & get_chan_data:
+     *
+     *  Get or create a channel, remember the channel->id mapping as well
+     */
+    chan_req_t &  get_chan_req  ( chan_id_t id );
+    chan_data_t & get_chan_data ( chan_id_t id );
+
 // ===========================================================================
 // == Virtual Methods (GEM5) =================================================
 // ===========================================================================
@@ -361,12 +270,19 @@ public:
      *  Should make use of ` get_chan ' to get or create necessary
      *  channels
      */
-    virtual void setup () = 0;
+    virtual void setup () {};
 
     /*
      * use_default_retcode:
      */
     virtual bool use_default_retcode () const { return false; }
+
+    /*
+     * finishup
+     *
+     *  set_constant etc.
+     */
+    virtual void finishup () {};
 
 protected:
     /*
@@ -376,13 +292,9 @@ protected:
      *  different signatures.
      */
     virtual void run () = 0;
-
-#endif /* #ifdef __DUET_HLS */
 };
 
-#ifndef __DUET_HLS
-    }   // namespace gem5
-    }   // namespace duet
-#endif /* #ifndef __DUET_HLS */
+}   // namespace gem5
+}   // namespace duet
 
 #endif /* #ifndef __DUET_FUNCTOR_HH */

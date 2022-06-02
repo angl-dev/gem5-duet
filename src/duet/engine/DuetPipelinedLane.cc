@@ -87,6 +87,8 @@ void DuetPipelinedLane::pull_phase () {
                 auto stage = it->functor->get_stage ();
 
                 if ( it->functor->advance () ) {
+                    it->functor->finishup ();
+
                     if ( it->functor->use_default_retcode () ) {
                         it->countdown = Cycles (1);
                         it->status = status;
@@ -201,6 +203,8 @@ void DuetPipelinedLane::push_phase () {
                 auto stage = it->functor->get_stage ();
 
                 if ( it->functor->advance () ) {
+                    it->functor->finishup ();
+
                     if ( it->functor->use_default_retcode () ) {
                         it->countdown = Cycles (1);
                         it->status = status;

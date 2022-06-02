@@ -99,13 +99,10 @@ void DuetSimpleLane::push_phase () {
             case DuetFunctor::chan_id_t::WDATA:
             case DuetFunctor::chan_id_t::RET:
             case DuetFunctor::chan_id_t::PUSH:
-                if ( engine->can_push_to_chan ( chan_id ) ) {
-                    _advance ();
-
-                    if ( _functor->is_done ()
-                            && !_functor->use_default_retcode () )
-                        _functor.reset ();
-                }
+                if ( engine->can_push_to_chan ( chan_id )
+                        && _advance ()
+                        && !_functor->use_default_retcode () )
+                    _functor.reset ();
                 break;
 
             default:
@@ -115,7 +112,7 @@ void DuetSimpleLane::push_phase () {
     }
 }
 
-void DuetSimpleLane::_advance () {
+bool DuetSimpleLane::_advance () {
     auto prev = _functor->get_stage ();
 
     if ( !_functor->advance () ) {
@@ -128,10 +125,11 @@ void DuetSimpleLane::_advance () {
                 prev, next );
 
         _remaining = it->second;
-    } else if ( _functor->use_default_retcode () ) {
-        _remaining = Cycles (1);
+        return false;
     } else {
-        _remaining = Cycles (0);
+        _functor->finishup ();
+        _remaining = _functor->use_default_retcode () ? Cycles(1) : Cycles(0);
+        return true;
     }
 }
 

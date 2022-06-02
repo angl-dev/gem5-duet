@@ -1,12 +1,13 @@
 #include "duet/engine/DuetFunctor.hh"
 #include "duet/engine/DuetLane.hh"
+#include "duet/engine/DuetEngine.hh"
 
 namespace gem5 {
 namespace duet {
 
 DuetFunctor::DuetFunctor ( DuetLane * lane, caller_id_t caller_id )
-    : _lane                 ( lane )
-    , _caller_id            ( caller_id )
+    : lane                  ( lane )
+    , caller_id             ( caller_id )
     , _blocking_chan_id     ()
     , _stage                ( 0 )
     , _is_functors_turn     ( false )
@@ -58,7 +59,7 @@ DuetFunctor::chan_req_t & DuetFunctor::get_chan_req (
         )
 {
     assert ( chan_id_t::REQ == id.tag );
-    auto & chan = _lane->get_chan_req ( id );
+    auto & chan = lane->engine->get_chan_req ( id );
     auto pchan = reinterpret_cast <void *> (&chan);
     auto ret = _id_by_chan.emplace ( pchan, id );
     panic_if ( !ret.second, "Duplicate channels" );
@@ -73,8 +74,8 @@ DuetFunctor::chan_data_t & DuetFunctor::get_chan_data (
             && chan_id_t::INVALID != id.tag );
     if ( chan_id_t::ARG == id.tag
             || chan_id_t::RET == id.tag )
-        id.id = _caller_id;
-    auto & chan = _lane->get_chan_data ( id );
+        id.id = caller_id;
+    auto & chan = lane->engine->get_chan_data ( id );
     auto pchan = reinterpret_cast <void *> (&chan);
     auto ret = _id_by_chan.emplace ( pchan, id );
     panic_if ( !ret.second, "Duplicate channels" );

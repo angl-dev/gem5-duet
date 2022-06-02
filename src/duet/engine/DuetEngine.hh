@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include <map>
 
 #include "params/DuetEngine.hh"
 #include "duet/DuetClockedObject.hh"
@@ -91,6 +92,11 @@ private:
     //  inter-lane channels -- shared among callers
     std::vector <std::unique_ptr <DuetFunctor::chan_data_t>> _chan_int_by_id;
 
+    // -- Constant registers -------------------------------------------------
+    std::map <std::string, uint64_t>                _constants;
+    std::vector <std::unique_ptr <std::map <std::string, uint64_t>>>
+        _constants_per_caller;
+
 // ===========================================================================
 // == Non-Parameterized Member Variables =====================================
 // ===========================================================================
@@ -128,6 +134,41 @@ public:
 
     DuetFunctor::caller_id_t get_num_callers () const { return _num_callers; }
 
+    template <typename T>
+    T get_constant (
+            DuetFunctor::caller_id_t    caller_id
+            , std::string               key
+            ) const
+    {
+        uint64_t v = this->template get_constant <uint64_t> ( caller_id, key );
+
+        if ( sizeof (T) == sizeof (uint64_t) ) {
+            return *( reinterpret_cast <T *> ( &v ) );
+        } else {
+            T t;
+            memcpy ( &t, &v, sizeof (T) );
+            return t;
+        }
+    }
+
+    template <typename T>
+    void set_constant (
+            DuetFunctor::caller_id_t    caller_id
+            , std::string               key
+            , const T                 & value
+            )
+    {
+        uint64_t v = 0;
+
+        if ( sizeof (T) == sizeof (uint64_t) ) {
+            v = *( reinterpret_cast <uint64_t *> ( &value ) );
+        } else {
+            memcpy ( &v, &value, sizeof (T) );
+        }
+
+        this->template set_constant <uint64_t> ( caller_id, key, v );
+    }
+
 // ===========================================================================
 // == API for Subclasses =====================================================
 // ===========================================================================
@@ -146,6 +187,11 @@ protected:
     bool handle_retchan_pull (
             DuetFunctor::caller_id_t    caller_id
             , uint64_t                & value
+            );
+
+    void set_constant (
+            std::string                 key
+            , uint64_t                  value
             );
 
 // ===========================================================================
@@ -177,6 +223,20 @@ public:
             , PortID idx = InvalidPortID ) override;
     void init () override;
 };
+
+// specialization
+template <>
+uint64_t DuetEngine::get_constant <uint64_t> (
+        DuetFunctor::caller_id_t    caller_id
+        , std::string               key
+        ) const;
+
+template <>
+void DuetEngine::set_constant <uint64_t> (
+        DuetFunctor::caller_id_t    caller_id
+        , std::string               key
+        , const uint64_t            & value
+        );
 
 }   // namespace duet
 }   // namespace gem5

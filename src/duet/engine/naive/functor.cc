@@ -20,11 +20,11 @@ void NaiveFunctor::setup () {
 
 void NaiveFunctor::run () {
     // load argument
-    uintptr_t addr;
+    addr_t addr;
     dequeue_data ( *chan_arg, addr );
 
     // send load request
-    enqueue_req ( *chan_req, make_load_req <uint64_t> (addr) );
+    enqueue_req ( *chan_req, REQTYPE_LD, sizeof (uint64_t), addr );
 
     // get response data
     uint64_t data;
@@ -35,7 +35,7 @@ void NaiveFunctor::run () {
 
     // send store request
     enqueue_data ( *chan_wdata, data );
-    enqueue_req ( *chan_req, make_store_req <uint64_t> (addr) );
+    enqueue_req ( *chan_req, REQTYPE_ST, sizeof (uint64_t), addr );
 }
 
 }   // namespace duet

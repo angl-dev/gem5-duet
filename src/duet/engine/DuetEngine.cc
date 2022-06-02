@@ -370,6 +370,17 @@ bool DuetEngine::handle_retchan_pull (
     return true;
 }
 
+void DuetEngine::set_constant (
+        std::string                 key
+        , uint64_t                  value
+        )
+{
+    auto ret = _constants.emplace ( key, value );
+    if ( !ret.second ) {
+        ret.first->second = value;
+    }
+}
+
 Port & DuetEngine::getPort (
         const std::string & if_name
         , PortID idx
@@ -394,6 +405,7 @@ void DuetEngine::init () {
     for ( DuetFunctor::caller_id_t i = 0; i < get_num_callers (); ++i ) {
         _chan_arg_by_id.emplace_back ( new DuetFunctor::chan_data_t () );
         _chan_ret_by_id.emplace_back ( new DuetFunctor::chan_data_t () );
+        _constants_per_caller.emplace_back ( new decltype (_constants) () );
     }
 
     for ( DuetFunctor::caller_id_t i = 0; i < get_num_memory_chans (); ++i) {
@@ -404,6 +416,38 @@ void DuetEngine::init () {
 
     for ( DuetFunctor::caller_id_t i = 0; i < get_num_interlane_chans (); ++i)
         _chan_int_by_id.emplace_back   ( new DuetFunctor::chan_data_t () );
+}
+
+template <>
+uint64_t DuetEngine::get_constant <uint64_t> (
+        DuetFunctor::caller_id_t    caller_id
+        , std::string               key
+        ) const
+{
+    auto it = _constants_per_caller [caller_id]->find ( key );
+
+    if ( _constants_per_caller [caller_id]->end () != it )
+        return it->second;
+
+    auto jt = _constants.find ( key );
+
+    if ( _constants.end () != jt )
+        return jt->second;
+    else
+        return 0;
+}
+
+template <>
+void DuetEngine::set_constant <uint64_t> (
+        DuetFunctor::caller_id_t    caller_id
+        , std::string               key
+        , const uint64_t            & value
+        )
+{
+    auto ret = _constants_per_caller [caller_id]->emplace ( key, value );
+    if ( !ret.second ) {
+        ret.first->second = value;
+    }
 }
 
 }   // namespace duet
