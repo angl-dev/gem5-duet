@@ -10,7 +10,6 @@ namespace duet {
 DuetPipelinedLane::DuetPipelinedLane ( const DuetPipelinedLaneParams & p )
     : DuetLane      ( p )
     , _interval     ( p.interval )
-    , _latency      ( p.latency )
 {}
 
 void DuetPipelinedLane::pull_phase () {
@@ -84,7 +83,7 @@ void DuetPipelinedLane::pull_phase () {
         case DuetFunctor::chan_id_t::ARG:
         case DuetFunctor::chan_id_t::PULL:
             if ( engine->can_pull_from_chan ( chan_id ) ) {
-                auto stage = it->functor->get_stage ();
+                auto prev = it->functor->get_stage ();
 
                 if ( it->functor->advance () ) {
                     it->functor->finishup ();
@@ -97,7 +96,8 @@ void DuetPipelinedLane::pull_phase () {
                         it = _exec_list.erase ( it );
                     }
                 } else {
-                    it->countdown = _latency [ stage ];
+                    auto next = it->functor->get_stage ();
+                    it->countdown = get_latency ( prev, next );
                     it->status = status;
                     ++it;
                 }
@@ -200,7 +200,7 @@ void DuetPipelinedLane::push_phase () {
         case DuetFunctor::chan_id_t::RET:
         case DuetFunctor::chan_id_t::PUSH:
             if ( engine->can_push_to_chan ( chan_id ) ) {
-                auto stage = it->functor->get_stage ();
+                auto prev = it->functor->get_stage ();
 
                 if ( it->functor->advance () ) {
                     it->functor->finishup ();
@@ -213,7 +213,8 @@ void DuetPipelinedLane::push_phase () {
                         it = _exec_list.erase ( it );
                     }
                 } else {
-                    it->countdown = _latency [ stage ];
+                    auto next = it->functor->get_stage ();
+                    it->countdown = get_latency ( prev, next );
                     it->status = status;
                     ++it;
                 }

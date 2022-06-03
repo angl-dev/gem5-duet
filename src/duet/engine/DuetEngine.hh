@@ -143,7 +143,7 @@ public:
         uint64_t v = this->template get_constant <uint64_t> ( caller_id, key );
 
         if ( sizeof (T) == sizeof (uint64_t) ) {
-            return *( reinterpret_cast <T *> ( &v ) );
+            return *( reinterpret_cast <const T *> ( &v ) );
         } else {
             T t;
             memcpy ( &t, &v, sizeof (T) );
@@ -161,7 +161,7 @@ public:
         uint64_t v = 0;
 
         if ( sizeof (T) == sizeof (uint64_t) ) {
-            v = *( reinterpret_cast <uint64_t *> ( &value ) );
+            v = *( reinterpret_cast <const uint64_t *> ( &value ) );
         } else {
             memcpy ( &v, &value, sizeof (T) );
         }
@@ -175,8 +175,6 @@ public:
 protected:
     bool try_send_mem_req_one (
             uint16_t                    chan_id
-            , DuetFunctor::mem_req_t    req
-            , DuetFunctor::raw_data_t   data
             );
 
     bool handle_argchan_push (
@@ -221,7 +219,7 @@ public:
     DuetEngine ( const DuetEngineParams & p );
     Port & getPort ( const std::string & if_name
             , PortID idx = InvalidPortID ) override;
-    void init () override;
+    virtual void init () override;
 };
 
 // specialization

@@ -59,7 +59,7 @@ DuetFunctor::chan_req_t & DuetFunctor::get_chan_req (
         )
 {
     assert ( chan_id_t::REQ == id.tag );
-    auto & chan = lane->engine->get_chan_req ( id );
+    auto & chan = lane->get_engine()->get_chan_req ( id );
     auto pchan = reinterpret_cast <void *> (&chan);
     auto ret = _id_by_chan.emplace ( pchan, id );
     panic_if ( !ret.second, "Duplicate channels" );
@@ -75,7 +75,7 @@ DuetFunctor::chan_data_t & DuetFunctor::get_chan_data (
     if ( chan_id_t::ARG == id.tag
             || chan_id_t::RET == id.tag )
         id.id = caller_id;
-    auto & chan = lane->engine->get_chan_data ( id );
+    auto & chan = lane->get_engine()->get_chan_data ( id );
     auto pchan = reinterpret_cast <void *> (&chan);
     auto ret = _id_by_chan.emplace ( pchan, id );
     panic_if ( !ret.second, "Duplicate channels" );

@@ -8,20 +8,7 @@ DuetSimpleLane::DuetSimpleLane ( const DuetSimpleLaneParams & p )
     : DuetLane      ( p )
     , _functor      ( nullptr )
     , _remaining    ( 0 )
-{
-    panic_if ( p.transition_from_stage.size () != p.transition_to_stage.size ()
-            || p.transition_to_stage.size () != p.transition_latency.size (),
-            "Transition latency vectors' sizes do not match." );
-
-    for ( size_t i = 0; i < p.transition_from_stage.size(); ++i ) {
-        auto ret = _transition_latency.emplace (
-                std::make_pair ( p.transition_from_stage[i], p.transition_to_stage[i] )
-                , p.transition_latency[i] );
-
-        panic_if ( !ret.second,
-                "Duplicate transition found in the transition latency vectors." );
-    }
-}
+{}
 
 void DuetSimpleLane::pull_phase () {
     // if there is a running functor, check if we can advance it
@@ -117,14 +104,7 @@ bool DuetSimpleLane::_advance () {
 
     if ( !_functor->advance () ) {
         auto next = _functor->get_stage ();
-        auto key = std::make_pair ( prev, next );
-        auto it = _transition_latency.find ( key );
-
-        panic_if ( _transition_latency.end() == it,
-                "No latency assigned for transition from stage %u to %u",
-                prev, next );
-
-        _remaining = it->second;
+        _remaining = get_latency ( prev, next );
         return false;
     } else {
         _functor->finishup ();

@@ -12,9 +12,6 @@ protected:
     std::unique_ptr <DuetFunctor>   _functor;
     Cycles                          _remaining;
 
-    std::map <std::pair <DuetFunctor::stage_t, DuetFunctor::stage_t>
-        , Cycles>       _transition_latency;
-
 // ===========================================================================
 // == API for subclesses =====================================================
 // ===========================================================================

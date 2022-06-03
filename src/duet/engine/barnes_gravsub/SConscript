@@ -1,0 +1,16 @@
+Import('*')
+
+SimObject('DuetBarnes.py', sim_objects=[
+    'DuetBarnesMemLane',
+    'DuetBarnesComputeLane',
+    'DuetBarnesAccumulatorLane',
+    'DuetBarnesEngine'
+    ])
+
+Source('DuetBarnesMemFunctor.cc')
+Source('DuetBarnesMemLane.cc')
+Source('DuetBarnesComputeFunctor.cc')
+Source('DuetBarnesComputeLane.cc')
+Source('DuetBarnesAccumulatorFunctor.cc')
+Source('DuetBarnesAccumulatorLane.cc')
+Source('DuetBarnesEngine.cc')

@@ -268,69 +268,86 @@ bool DuetEngine::can_pull_from_chan (
 
 bool DuetEngine::try_send_mem_req_one (
         uint16_t                    chan_id
-        , DuetFunctor::mem_req_t    req
-        , DuetFunctor::raw_data_t   data
         )
 {
+    // check if there is a pending request in that channel
+    auto & chan_req     = _chan_req_by_id   [chan_id];
+    if ( chan_req->empty () )
+        return false;
+
     // find a memory port whose req_buf is empty
-    for ( auto & port : _mem_ports ) {
-        if ( nullptr == port.req_buf ) {
-            // translate address
-            Addr paddr;
-            panic_if ( !_process->pTable->translate ( req.addr, paddr ),
-                    "Memory translation failed" );
+    auto port = _mem_ports.begin ();
+    for ( ; _mem_ports.end () != port; ++port )
+        if ( nullptr == port->req_buf )
+            break;
+    if ( _mem_ports.end () == port )
+        return false;
 
-            // make a new request
-            RequestPtr req_ = std::make_shared <Request> (
-                    paddr,
-                    req.size,
-                    (Request::FlagsType) chan_id,
-                    _requestorId
-                    );
+    // get duet request
+    auto req = chan_req->front ();
 
-            // get data and construct packet
-            PacketPtr pkt = nullptr;
-            switch ( req.type ) {
-            case DuetFunctor::REQTYPE_LD :
-                pkt = new Packet ( req_, Packet::makeReadCmd ( req_ ) );
-                pkt->allocate ();
-                break;
+    // translate address
+    Addr paddr;
+    panic_if ( !_process->pTable->translate ( req.addr, paddr ),
+            "Memory translation failed" );
 
-            case DuetFunctor::REQTYPE_ST :
-                pkt = new Packet ( req_, Packet::makeWriteCmd ( req_ ) );
-                pkt->allocate ();
-                pkt->setData ( data.get() );
-                break;
+    // make GEM5 request based on duet request
+    RequestPtr gem5req = std::make_shared <Request> (
+            paddr,
+            req.size,
+            (Request::FlagsType) chan_id,
+            _requestorId
+            );
+
+    // get the data channel in case we need it 
+    auto & chan_data    = _chan_wdata_by_id [chan_id];
+
+    // create packets
+    PacketPtr pkt = nullptr;
+    switch ( req.type ) {
+    case DuetFunctor::REQTYPE_LD:
+        pkt = new Packet ( gem5req, Packet::makeReadCmd ( gem5req ) );
+        pkt->allocate ();
+        break;
+
+    case DuetFunctor::REQTYPE_ST:
+        if ( chan_data->empty () )  // data not ready
+            return false;
+        pkt = new Packet ( gem5req, Packet::makeWriteCmd ( gem5req ) );
+        pkt->allocate ();
+        pkt->setData ( chan_data->front().get() );
+        chan_data->pop_front ();
+        break;
 
 #define _TMP_UNSUPPORTED_REQ_TYPE(_t_) \
-            case DuetFunctor::_t_ :           \
-                panic ( "Unsupported request type: _t_" );  \
-                break;
+    case DuetFunctor::_t_ :           \
+        panic ( "Unsupported request type: _t_" );  \
+        break;
 
-            _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_LR)
-            _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_SC)
-            _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_SWAP)
-            _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_ADD)
-            _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_AND)
-            _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_OR)
-            _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_XOR)
-            _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_MAX)
-            _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_MAXU)
-            _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_MIN)
-            _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_MINU)
+    _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_LR)
+    _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_SC)
+    _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_SWAP)
+    _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_ADD)
+    _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_AND)
+    _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_OR)
+    _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_XOR)
+    _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_MAX)
+    _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_MAXU)
+    _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_MIN)
+    _TMP_UNSUPPORTED_REQ_TYPE (REQTYPE_MINU)
 
 #undef _TMP_UNSUPPORTED_REQ_TYPE
 
-            default :
-                panic ( "Invalid request type" );
-            }
-
-            port.req_buf = pkt;
-            return true;
-        }
+    default :
+        panic ( "Invalid request type" );
     }
 
-    return false;
+    // buffer packet for sending
+    port->req_buf = pkt;
+
+    // pop channels
+    chan_req->pop_front ();
+    return true;
 }
 
 bool DuetEngine::handle_argchan_push (

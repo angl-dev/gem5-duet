@@ -23,12 +23,12 @@ for cpu in system.cpus:
     cpu.icache_port = system.membus.cpu_side_ports
     cpu.dcache_port = system.membus.cpu_side_ports
 
-# system.engine.lanes[0].transition_from_stage = [0, 1, 2, 3, 4]
-# system.engine.lanes[0].transition_to_stage   = [1, 2, 3, 4, 5]
-# system.engine.lanes[0].transition_latency    = [1, 1, 1, 1, 1]
-system.engine.lanes[0].latency = [5000, 5000, 5000, 5000]
+system.engine.lanes[0].transition_from_stage = [0, 1, 2, 3]
+system.engine.lanes[0].transition_to_stage   = [1, 2, 3, 4]
+system.engine.lanes[0].transition_latency    = [5000, 6000, 7000, 8000]
+# system.engine.lanes[0].latency = [5000, 5000, 5000, 5000]
 system.engine.lanes[0].interval = 4999
-system.engine.fifo_capacity = 32
+system.engine.fifo_capacity = 128
 
 system.system_port          = system.membus.cpu_side_ports
 system.engine.num_callers   = num_threads

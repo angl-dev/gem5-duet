@@ -8,6 +8,18 @@ DuetLane::DuetLane ( const DuetLaneParams & p )
     : SimObject     ( p )
     , engine        ( nullptr )
 {
+    panic_if ( p.transition_from_stage.size () != p.transition_to_stage.size ()
+            || p.transition_to_stage.size () != p.transition_latency.size (),
+            "Transition latency vectors' sizes do not match." );
+
+    for ( size_t i = 0; i < p.transition_from_stage.size(); ++i ) {
+        auto ret = _transition_latency.emplace (
+                std::make_pair ( p.transition_from_stage[i], p.transition_to_stage[i] )
+                , p.transition_latency[i] );
+
+        panic_if ( !ret.second,
+                "Duplicate transition found in the transition latency vectors." );
+    }
 }
 
 bool DuetLane::push_default_retcode (
@@ -29,6 +41,21 @@ bool DuetLane::push_default_retcode (
     } else {
         return false;
     }
+}
+
+Cycles DuetLane::get_latency (
+        DuetFunctor::stage_t    from
+        , DuetFunctor::stage_t  to
+        ) const
+{
+    auto key = std::make_pair ( from, to );
+    auto it = _transition_latency.find ( key );
+
+    panic_if ( _transition_latency.end() == it,
+            "No latency assigned for transition from stage %u to %u",
+            from, to );
+
+    return it->second;
 }
 
 }   // namespace duet
