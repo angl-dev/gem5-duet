@@ -11,6 +11,10 @@ DuetFunctor::caller_id_t DuetBarnesEngine::get_num_memory_chans () const {
     return 1;
 }
 
+DuetFunctor::caller_id_t DuetBarnesEngine::get_num_interlane_chans () const {
+    return 3;
+}
+
 bool DuetBarnesEngine::handle_softreg_write (
         DuetEngine::softreg_id_t    softreg_id
         , uint64_t                  value
@@ -33,15 +37,15 @@ bool DuetBarnesEngine::handle_softreg_write (
         return handle_argchan_push ( caller_id, value );
 
     case 1:     // pos0x
-        set_constant ( softreg_id, "pos0x", value );
+        set_constant ( caller_id, "pos0x", value );
         return true;
 
     case 2:     // pos0y
-        set_constant ( softreg_id, "pos0y", value );
+        set_constant ( caller_id, "pos0y", value );
         return true;
 
     case 3:     // pos0z
-        set_constant ( softreg_id, "pos0z", value );
+        set_constant ( caller_id, "pos0z", value );
         return true;
 
     default:    // phii, accx, accy, accz

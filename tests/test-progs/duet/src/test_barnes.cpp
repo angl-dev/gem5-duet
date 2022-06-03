@@ -68,21 +68,27 @@ int main ( int argc, char * argv[] ) {
     }
 
     node_t nodes [num_nodes];
-    std::random_device rd;
-    std::default_random_engine re(rd());
+    std::default_random_engine re(0xdeadbeef);
     std::uniform_real_distribution <double> dist ( 1.0, 2.0 );
     for ( size_t i = 0; i < num_nodes; ++i ) {
         nodes[i].mass = dist (re);
         nodes[i].pos[0] = dist (re);
         nodes[i].pos[1] = dist (re);
         nodes[i].pos[2] = dist (re);
+
+        printf ( "node %u: mass (%f), pos (%f, %f, %f)\n",
+                i, nodes[i].mass, nodes[i].pos[0], nodes[i].pos[1], nodes[i].pos[2] );
     }
 
     const double pos0[3] = { dist(re), dist(re), dist(re) };
     const double epssq = 1e-8;
 
+    printf ( "pos0 (%f, %f, %f)\n", pos0[0], pos0[1], pos0[2] );
+
     double phi_ref, acc_ref[3];
     ref ( pos0, epssq, nodes, num_nodes, phi_ref, acc_ref );
+
+    printf ( "ref: phi (%f), acc (%f, %f, %f)\n", phi_ref, acc_ref[0], acc_ref[1], acc_ref[2] );
 
     vaddr[0]  /* epssq */ = *(reinterpret_cast <const uint64_t *> (&epssq) );
     vaddr[9]  /* pos0x */ = *(reinterpret_cast <const uint64_t *> (&pos0[0]) );
@@ -94,45 +100,51 @@ int main ( int argc, char * argv[] ) {
     for ( size_t i = 0; i < num_nodes; ++i ) {
         vaddr[8] = reinterpret_cast <uint64_t> (&nodes[i]);
     }
-    phi_duet0 = vaddr[12];
-    acc_duet0[0] = vaddr[13];
-    acc_duet0[1] = vaddr[14];
-    acc_duet0[2] = vaddr[15];
+    for ( size_t i = 0; i < num_nodes; ++i ) {
+        while ( 0 == vaddr[8] );
+    }
+    phi_duet0 =    *(reinterpret_cast <const volatile double *> (&vaddr[12]));
+    acc_duet0[0] = *(reinterpret_cast <const volatile double *> (&vaddr[13]));
+    acc_duet0[1] = *(reinterpret_cast <const volatile double *> (&vaddr[14]));
+    acc_duet0[2] = *(reinterpret_cast <const volatile double *> (&vaddr[15]));
 
     // second call
     double phi_duet1, acc_duet1[3];
     for ( size_t i = 0; i < num_nodes; ++i ) {
         vaddr[8] = reinterpret_cast <uint64_t> (&nodes[i]);
     }
-    phi_duet1 = vaddr[12];
-    acc_duet1[0] = vaddr[13];
-    acc_duet1[1] = vaddr[14];
-    acc_duet1[2] = vaddr[15];
+    for ( size_t i = 0; i < num_nodes; ++i ) {
+        while ( 0 == vaddr[8] );
+    }
+    phi_duet1 =    *(reinterpret_cast <const volatile double *> (&vaddr[12]));
+    acc_duet1[0] = *(reinterpret_cast <const volatile double *> (&vaddr[13]));
+    acc_duet1[1] = *(reinterpret_cast <const volatile double *> (&vaddr[14]));
+    acc_duet1[2] = *(reinterpret_cast <const volatile double *> (&vaddr[15]));
 
-    if ( abs (phi_duet0 - phi_ref) < epssq )
+    if ( abs (phi_duet0 - phi_ref) > epssq )
         fprintf ( stderr, "phi: ref = %e != duet[0] = %e\n",
                 phi_ref, phi_duet0 );
-    if ( abs (acc_duet0[0] - acc_ref[0]) < epssq )
+    if ( abs (acc_duet0[0] - acc_ref[0]) > epssq )
         fprintf ( stderr, "acc[0]: ref = %e != duet[0] = %e\n",
                 acc_duet0[0], acc_ref[0] );
-    if ( abs (acc_duet0[1] - acc_ref[1]) < epssq )
+    if ( abs (acc_duet0[1] - acc_ref[1]) > epssq )
         fprintf ( stderr, "acc[1]: ref = %e != duet[0] = %e\n",
                 acc_duet0[1], acc_ref[1] );
-    if ( abs (acc_duet0[2] - acc_ref[2]) < epssq )
+    if ( abs (acc_duet0[2] - acc_ref[2]) > epssq )
         fprintf ( stderr, "acc[2]: ref = %e != duet[0] = %e\n",
                 acc_duet0[2], acc_ref[2] );
 
-    if ( abs (phi_duet1 - phi_ref) < epssq )
-        fprintf ( stderr, "phi: ref = %e != duet[0] = %e\n",
+    if ( abs (phi_duet1 - phi_ref) > epssq )
+        fprintf ( stderr, "phi: ref = %e != duet[1] = %e\n",
                 phi_ref, phi_duet1 );
-    if ( abs (acc_duet1[0] - acc_ref[0]) < epssq )
-        fprintf ( stderr, "acc[0]: ref = %e != duet[0] = %e\n",
+    if ( abs (acc_duet1[0] - acc_ref[0]) > epssq )
+        fprintf ( stderr, "acc[0]: ref = %e != duet[1] = %e\n",
                 acc_duet1[0], acc_ref[0] );
-    if ( abs (acc_duet1[1] - acc_ref[1]) < epssq )
-        fprintf ( stderr, "acc[1]: ref = %e != duet[0] = %e\n",
+    if ( abs (acc_duet1[1] - acc_ref[1]) > epssq )
+        fprintf ( stderr, "acc[1]: ref = %e != duet[1] = %e\n",
                 acc_duet1[1], acc_ref[1] );
-    if ( abs (acc_duet1[2] - acc_ref[2]) < epssq )
-        fprintf ( stderr, "acc[2]: ref = %e != duet[0] = %e\n",
+    if ( abs (acc_duet1[2] - acc_ref[2]) > epssq )
+        fprintf ( stderr, "acc[2]: ref = %e != duet[1] = %e\n",
                 acc_duet1[2], acc_ref[2] );
 
     printf ( "done\n" );
