@@ -2,7 +2,7 @@
 #define __DUET_BARNES_COMPUTE_FUNCTOR_HH
 
 #ifdef __DUET_HLS
-    #include "functor.hh"
+    #include "hls/functor.hh"
 
     #define sqrt(x) (x).sqrt<AC_RND_CONV,true>()
 #else /* #ifdef __DUET_HLS */

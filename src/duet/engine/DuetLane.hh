@@ -18,6 +18,8 @@ class DuetLane : public SimObject {
 // ===========================================================================
 protected:
     DuetEngine        * engine;
+    Cycles              prerun_latency;
+    Cycles              postrun_latency;
     std::map <std::pair <DuetFunctor::stage_t, DuetFunctor::stage_t>
         , Cycles>       _transition_latency;
 

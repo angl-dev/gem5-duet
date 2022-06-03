@@ -1,17 +1,17 @@
 #ifndef __DUET_BARNES_COMPUTE_LANE_HH
 #define __DUET_BARNES_COMPUTE_LANE_HH
 
-#include "duet/engine/DuetSimpleLane.hh"
+#include "duet/engine/DuetPipelinedLane.hh"
 
 namespace gem5 {
 namespace duet {
 
-class DuetBarnesComputeLane : public DuetSimpleLane {
+class DuetBarnesComputeLane : public DuetPipelinedLane {
 protected:
     DuetFunctor * new_functor () override final;
 
 public:
-    DuetBarnesComputeLane ( const DuetSimpleLaneParams & p );
+    DuetBarnesComputeLane ( const DuetPipelinedLaneParams & p );
 };
 
 }   // namespace duet

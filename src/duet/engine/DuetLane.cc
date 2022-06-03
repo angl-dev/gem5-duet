@@ -5,8 +5,10 @@ namespace gem5 {
 namespace duet {
 
 DuetLane::DuetLane ( const DuetLaneParams & p )
-    : SimObject     ( p )
-    , engine        ( nullptr )
+    : SimObject         ( p )
+    , engine            ( nullptr )
+    , prerun_latency    ( p.prerun_latency )
+    , postrun_latency   ( p.postrun_latency )
 {
     panic_if ( p.transition_from_stage.size () != p.transition_to_stage.size ()
             || p.transition_to_stage.size () != p.transition_latency.size (),

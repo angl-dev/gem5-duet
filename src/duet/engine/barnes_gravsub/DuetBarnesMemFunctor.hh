@@ -2,7 +2,7 @@
 #define __DUET_BARNES_MEM_FUNCTOR_HH
 
 #ifdef __DUET_HLS
-    #include "functor.hh"
+    #include "hls/functor.hh"
 #else /* #ifdef __DUET_HLS */
     #include "duet/engine/DuetFunctor.hh"
     

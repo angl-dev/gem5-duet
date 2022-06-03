@@ -36,7 +36,7 @@ public:
 // ===========================================================================
 // == HLS-specific types =====================================================
 // ===========================================================================
-protected:
+public:
     typedef ac_int <8, false>   Bool;
     typedef ac_int <8, false>   U8;
     typedef ac_int <8, true>    S8;
@@ -51,8 +51,6 @@ protected:
     typedef ac_ieee_float32     Float;
     typedef ac_ieee_float64     Double;
     typedef ac_int <48, false>  addr_t;
-
-public:
     typedef ac_channel <U64>    chan_req_t;
     typedef ac_channel <U64>    chan_data_t;
 
@@ -70,19 +68,7 @@ protected:
             , size_t            size
             , addr_t            addr
             )
-    {
-        U64 req;
-        
-        U8 _type ( type );
-        req.template set_slc <8> ( 0, _type );
-
-        U8 _size ( size );
-        req.template set_slc <8> ( 8, _size );
-
-        req.template set_slc <48> ( 16, addr );
-
-        chan.write ( req );
-    }
+    { chan.write ( make_req ( type, size, addr ) ); }
 
     /* -----------------------------------------------------------------------
      * enqueue_data:
@@ -97,28 +83,6 @@ protected:
     {
         U64 packed ( data );
         chan.write ( packed );
-    }
-
-    // specialization for float (float32)
-    template <>
-    void enqueue_data <Float> (
-            chan_data_t &       chan
-            , const Float &     data
-            )
-    {
-        U64 packed;
-        packed.template set_slc <32> ( 0, data.data_ac_int() );
-        chan.write ( packed );
-    }
-
-    // specialization for double (float64)
-    template <>
-    void enqueue_data <Double> (
-            chan_data_t &       chan
-            , const Double &    data
-            )
-    {
-        chan.write ( data.data_ac_int () );
     }
 
     /* -----------------------------------------------------------------------
@@ -136,25 +100,70 @@ protected:
         data = packed.template slc <T::width> (0);
     }
 
-    // specialization for float (float32)
-    template <>
-    void dequeue_data <Float> (
-            chan_data_t &       chan
-            , Float &           data
-            )
+// ===========================================================================
+// == API for testbench ======================================================
+// ===========================================================================
+public:
+    U64 make_req (
+            mem_req_type_t      type
+            , size_t            size
+            , addr_t            addr
+            ) const
     {
-        U64 packed = chan.read ();
-        data.set_data ( packed.template slc <32> (0) );
-    }
+        U64 req;
+        
+        U8 _type ( type );
+        req.template set_slc <8> ( 0, _type );
 
-    // specialization for double (float64)
-    template <>
-    void dequeue_data <Double> (
-            chan_data_t &       chan
-            , Double &          data
-            )
-    {
-        U64 packed = chan.read ();
-        data.set_data ( packed );
+        U8 _size ( size );
+        req.template set_slc <8> ( 8, _size );
+
+        req.template set_slc <48> ( 16, addr );
+
+        return req;
     }
 };
+
+// specialization for float (float32)
+template <>
+void DuetFunctor::enqueue_data <DuetFunctor::Float> (
+        DuetFunctor::chan_data_t &      chan
+        , const DuetFunctor::Float &    data
+        )
+{
+    U64 packed;
+    packed.template set_slc <32> ( 0, data.data_ac_int() );
+    chan.write ( packed );
+}
+
+// specialization for double (float64)
+template <>
+void DuetFunctor::enqueue_data <DuetFunctor::Double> (
+        DuetFunctor::chan_data_t &      chan
+        , const DuetFunctor::Double &   data
+        )
+{
+    chan.write ( data.data_ac_int () );
+}
+
+// specialization for float (float32)
+template <>
+void DuetFunctor::dequeue_data <DuetFunctor::Float> (
+        DuetFunctor::chan_data_t &      chan
+        , DuetFunctor::Float &          data
+        )
+{
+    U64 packed = chan.read ();
+    data.set_data ( packed.template slc <32> (0) );
+}
+
+// specialization for double (float64)
+template <>
+void DuetFunctor::dequeue_data <DuetFunctor::Double> (
+        DuetFunctor::chan_data_t &      chan
+        , DuetFunctor::Double &         data
+        )
+{
+    U64 packed = chan.read ();
+    data.set_data ( packed );
+}

@@ -68,10 +68,19 @@ void DuetPipelinedLane::pull_phase () {
 
         // 1.4 if the execution has finished ...
         if ( it->functor->is_done () ) {
-            // speculate that retcode can be pushed in the push phase in this
-            // cycle
-            ++it;
-            status = Execution::SPECULATIVE;
+
+            if ( !it->functor->use_default_retcode () ) {
+                // .. and does not push retcode, finishup and remove this
+                // execution
+                it->functor->finishup ();
+                it = _exec_list.erase ( it );
+            } else {
+                // .. otherwise, speculate that retcode can be pushed in the
+                // push phase in this cycle
+                ++it;
+                status = Execution::SPECULATIVE;
+            }
+
             continue;
         }
 
@@ -86,15 +95,9 @@ void DuetPipelinedLane::pull_phase () {
                 auto prev = it->functor->get_stage ();
 
                 if ( it->functor->advance () ) {
-                    it->functor->finishup ();
-
-                    if ( it->functor->use_default_retcode () ) {
-                        it->countdown = Cycles (1);
-                        it->status = status;
-                        ++it;
-                    } else {
-                        it = _exec_list.erase ( it );
-                    }
+                    it->countdown = postrun_latency + Cycles(1);
+                    it->status = status;
+                    ++it;
                 } else {
                     auto next = it->functor->get_stage ();
                     it->countdown = get_latency ( prev, next );
@@ -137,7 +140,7 @@ void DuetPipelinedLane::pull_phase () {
         f->setup ();
         f->advance ();  // get to the first blocking point
 
-        auto & e = _exec_list.emplace_back ( Cycles(1), f );
+        auto & e = _exec_list.emplace_back ( prerun_latency + Cycles(1), f );
         e.status = status;
     }
 }
@@ -176,12 +179,17 @@ void DuetPipelinedLane::push_phase () {
 
         // 1.4 if the execution has finished
         if ( it->functor->is_done () ) {
-            if ( push_default_retcode ( it->functor->get_caller_id () ) )
+
+            if ( !it->functor->use_default_retcode ()
+                    || push_default_retcode ( it->functor->get_caller_id () ) )
+            {
+                it->functor->finishup ();
                 it = _exec_list.erase ( it );
-            else {
+            } else {
                 it->status = status = Execution::STALL;
                 ++it;
             }
+
             continue;
         }
 
@@ -203,15 +211,9 @@ void DuetPipelinedLane::push_phase () {
                 auto prev = it->functor->get_stage ();
 
                 if ( it->functor->advance () ) {
-                    it->functor->finishup ();
-
-                    if ( it->functor->use_default_retcode () ) {
-                        it->countdown = Cycles (1);
-                        it->status = status;
-                        ++it;
-                    } else {
-                        it = _exec_list.erase ( it );
-                    }
+                    it->countdown = postrun_latency + Cycles(1);
+                    it->status = status;
+                    ++it;
                 } else {
                     auto next = it->functor->get_stage ();
                     it->countdown = get_latency ( prev, next );

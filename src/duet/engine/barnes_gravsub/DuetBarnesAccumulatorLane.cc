@@ -6,7 +6,7 @@ namespace gem5 {
 namespace duet {
 
 DuetBarnesAccumulatorLane::DuetBarnesAccumulatorLane ( const DuetSimpleLaneParams & p )
-    : DuetSimpleLane            ( p )
+    : DuetSimpleLane        ( p )
 {}
 
 DuetFunctor * DuetBarnesAccumulatorLane::new_functor () {
