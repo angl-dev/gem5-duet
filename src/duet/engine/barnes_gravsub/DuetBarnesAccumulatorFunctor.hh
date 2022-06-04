@@ -60,7 +60,6 @@ public:
 
     void setup () override final;
     void finishup () override final;
-    bool use_default_retcode () const override final { return true; }
 #endif
 };
 

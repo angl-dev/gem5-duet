@@ -9,52 +9,29 @@ class DuetBarnesMemLane (DuetSimpleLane):
     cxx_class   = "gem5::duet::DuetBarnesMemLane"
     cxx_header  = "duet/engine/barnes_gravsub/DuetBarnesMemLane.hh"
 
-    def __init__ (self, **kwargs):
-        ft = kwargs.pop ( "transition_from_stage", [0,1,2,3] )
-        tt = kwargs.pop ( "transition_to_stage",   [1,2,3,4] )
-        l  = kwargs.pop ( "transition_latency",    [1,1,1,1] )
-
-        super().__init__(**kwargs)
-
-        self.transition_from_stage = ft
-        self.transition_to_stage   = tt
-        self.transition_latency    = l
+    transition_from_stage   = [0,1,2,3]
+    transition_to_stage     = [1,2,3,4]
+    transition_latency      = [1,1,1,1]
 
 class DuetBarnesComputeLane (DuetPipelinedLane):
     type        = "DuetBarnesComputeLane"
     cxx_class   = "gem5::duet::DuetBarnesComputeLane"
     cxx_header  = "duet/engine/barnes_gravsub/DuetBarnesComputeLane.hh"
 
-    def __init__ (self, **kwargs):
-        ft = kwargs.pop ( "transition_from_stage", [0,0,1,  2,3] )
-        tt = kwargs.pop ( "transition_to_stage",   [0,1,2,  3,3] )
-        l  = kwargs.pop ( "transition_latency",    [1,1,148,5,1] )
-        ii = kwargs.pop ( "interval",              8 )
-
-        super().__init__(**kwargs)
-
-        self.transition_from_stage = ft
-        self.transition_to_stage   = tt
-        self.transition_latency    = l
-        self.interval              = ii
+    transition_from_stage   = [0,0,1,  2,3]
+    transition_to_stage     = [0,1,2,  3,3]
+    transition_latency      = [1,1,148,5,1]
+    interval                = 8
 
 class DuetBarnesAccumulatorLane (DuetSimpleLane):
     type        = "DuetBarnesAccumulatorLane"
     cxx_class   = "gem5::duet::DuetBarnesAccumulatorLane"
     cxx_header  = "duet/engine/barnes_gravsub/DuetBarnesAccumulatorLane.hh"
 
-    def __init__ (self, **kwargs):
-        ft = kwargs.pop ( "transition_from_stage", [0] )
-        tt = kwargs.pop ( "transition_to_stage",   [0] )
-        l  = kwargs.pop ( "transition_latency",    [1] )
-        tl = kwargs.pop ( "postrun_latency",       9 )
-
-        super().__init__(**kwargs)
-
-        self.transition_from_stage = ft
-        self.transition_to_stage   = tt
-        self.transition_latency    = l
-        self.postrun_latency       = tl
+    transition_from_stage   = [0]
+    transition_to_stage     = [0]
+    transition_latency      = [1]
+    postrun_latency         = 9
 
 class DuetBarnesEngine (DuetEngine):
     type        = "DuetBarnesEngine"

@@ -48,6 +48,19 @@ void DuetClockedObject::UpstreamPort::try_send_resp () {
     }
 }
 
+void DuetClockedObject::UpstreamPort::exchange () {
+    if ( nullptr != resp_buf
+            && !is_this_waiting_for_retry )
+        try_send_resp ();
+
+    if ( nullptr == req_buf
+            && is_peer_waiting_for_retry )
+    {
+        is_peer_waiting_for_retry = false;
+        sendRetryReq ();
+    }
+}
+
 bool DuetClockedObject::DownstreamPort::recvTimingResp ( PacketPtr pkt ) {
     // block until the update phase is done
     if ( owner->is_update_phase ()
@@ -81,6 +94,19 @@ void DuetClockedObject::DownstreamPort::try_send_req () {
         is_this_waiting_for_retry   = false;
     } else {
         is_this_waiting_for_retry   = true;
+    }
+}
+
+void DuetClockedObject::DownstreamPort::exchange () {
+    if ( nullptr != req_buf
+            && !is_this_waiting_for_retry )
+        try_send_req ();
+
+    if ( nullptr == resp_buf
+            && is_peer_waiting_for_retry )
+    {
+        is_peer_waiting_for_retry = false;
+        sendRetryResp ();
     }
 }
 

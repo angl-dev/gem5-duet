@@ -8,6 +8,9 @@ namespace gem5 {
 namespace duet {
 
 class DuetBarnesEngine : public DuetEngine {
+private:
+    static const constexpr softreg_id_t num_softreg_per_caller  = 16;
+
 public:
     DuetBarnesEngine ( const DuetBarnesEngineParams & p )
         : DuetEngine ( p )

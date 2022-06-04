@@ -17,7 +17,7 @@ void DuetPipelinedLane::pull_phase () {
     auto status = Execution::NONSTALL;
 
     // 1. process all executions
-    DPRINTF ( DuetEngine, "[DuetEngine] Cycle %d\n", engine->curCycle() );
+    DPRINTF ( DuetEngine, "Pipeline @ Cycle %u\n", engine->curCycle() );
 
     for ( auto it = _exec_list.begin (); _exec_list.end () != it; ) {
 

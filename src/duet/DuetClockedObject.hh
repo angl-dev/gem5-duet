@@ -42,6 +42,7 @@ protected:
         virtual bool recvTimingReq ( PacketPtr pkt ) override final;
         virtual void recvRespRetry () override final;
                 void try_send_resp ();
+                void exchange ();
     };
 
     /* Port to downstream */
@@ -70,6 +71,7 @@ protected:
         virtual bool recvTimingResp ( PacketPtr pkt ) override final;
         virtual void recvReqRetry () override final;
                 void try_send_req ();
+                void exchange ();
     };
 
 private:

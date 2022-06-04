@@ -1,5 +1,8 @@
+#include "debug/DuetEngine.hh"
+#include "debug/DuetEngineDetailed.hh"
 #include "duet/engine/DuetSimpleLane.hh"
 #include "duet/engine/DuetEngine.hh"
+#include "base/trace.hh"
 
 namespace gem5 {
 namespace duet {
@@ -13,6 +16,13 @@ DuetSimpleLane::DuetSimpleLane ( const DuetSimpleLaneParams & p )
 void DuetSimpleLane::pull_phase () {
     // if there is a running functor, check if we can advance it
     if ( _functor ) {
+
+        if ( _functor->is_done () )
+            DPRINTF ( DuetEngine, "Cycle %u, FIN:%u\n",
+                    engine->curCycle(), _remaining );
+        else
+            DPRINTF ( DuetEngine, "Cycle %u, S%u:%u\n",
+                    engine->curCycle(), _functor->get_stage(), _remaining );
 
         // increment progress
         if ( Cycles(0) < _remaining )

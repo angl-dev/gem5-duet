@@ -1,7 +1,10 @@
+#include "debug/DuetEngine.hh"
+#include "debug/DuetEngineDetailed.hh"
 #include "duet/engine/DuetEngine.hh"
 #include "duet/engine/DuetLane.hh"
 #include "sim/system.hh"
 #include "sim/process.hh"
+#include "base/trace.hh"
 
 namespace gem5 {
 namespace duet {
@@ -83,6 +86,7 @@ void DuetEngine::update () {
 
     //  2. if memory response buffer contains a valid load response, see if we
     //     can receive it
+    std::vector <bool> chan_pushed ( get_num_memory_chans(), false );
     for ( auto & port : _mem_ports ) {
         auto pkt = port.resp_buf;
 
@@ -90,11 +94,16 @@ void DuetEngine::update () {
 
             if ( pkt->isRead () ) {
                 uint16_t chan_id = pkt->req->getFlags() & Request::ARCH_BITS;
+                if ( chan_pushed [ chan_id ] ) continue;
+
                 auto & chan = _chan_rdata_by_id [chan_id];
 
                 if ( 0 == _fifo_capacity
                         || chan->size () < _fifo_capacity )
                 {
+                    DPRINTF ( DuetEngine, "Accept RESP %s @CHAN %u\n",
+                            pkt->print(), chan_id );
+
                     DuetFunctor::raw_data_t data (
                             new uint8_t[ pkt->getSize() ]);
                     std::memcpy (
@@ -103,6 +112,7 @@ void DuetEngine::update () {
                             pkt->getSize()
                             );
                     chan->push_back ( data );
+                    chan_pushed [ chan_id ] = true;
                     port.resp_buf = nullptr;
                     delete pkt;
                 }
@@ -120,31 +130,12 @@ void DuetEngine::update () {
 
 void DuetEngine::exchange () {
     //  1. send out SRI response if possible, then send out retry notifications
-    if ( nullptr != _sri_port.resp_buf
-            && !_sri_port.is_this_waiting_for_retry )
-        _sri_port.try_send_resp ();
-
-    if ( nullptr == _sri_port.req_buf
-            && _sri_port.is_peer_waiting_for_retry )
-    {
-        _sri_port.is_peer_waiting_for_retry = false;
-        _sri_port.sendRetryReq ();
-    }
+    _sri_port.exchange ();
 
     //  2. send out memory requests if possible, then send out retry
     //  notifications
-    for ( auto & port : _mem_ports ) {
-        if ( nullptr != port.req_buf
-                && !port.is_this_waiting_for_retry )
-            port.try_send_req ();
-
-        if ( nullptr == port.resp_buf
-                && port.is_peer_waiting_for_retry )
-        {
-            port.is_peer_waiting_for_retry = false;
-            port.sendRetryResp ();
-        }
-    }
+    for ( auto & port : _mem_ports )
+        port.exchange ();
 }
 
 bool DuetEngine::has_work () {
@@ -344,6 +335,8 @@ bool DuetEngine::try_send_mem_req_one (
 
     // buffer packet for sending
     port->req_buf = pkt;
+    DPRINTF ( DuetEngine, "Send REQ %s @CHAN %u\n",
+            pkt->print (), chan_id );
 
     // pop channels
     chan_req->pop_front ();
