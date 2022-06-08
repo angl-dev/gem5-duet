@@ -21,6 +21,7 @@ class DuetAsyncFIFO (SimObject):
     downstream_port = RequestPort       ( "Request port to downstream" )
     upstream_ctrl   = Param.DuetAsyncFIFOCtrl ( "Upstream ctrl" )
     downstream_ctrl = Param.DuetAsyncFIFOCtrl ( "Downstream ctrl" )
+    snooping        = Param.Bool        ( False, "If the Async FIFO supports snooping across" )
 
     def __init__ (self, **kwargs):
         upstream_clk_domain = kwargs.pop ("upstream_clk_domain", None)

@@ -20,6 +20,9 @@ def add_common_arguments (parser):
     parser.add_argument ('--duet-memspace',     dest='duet_size',   type=str, default='1GB')
     
     # cpus
+    parser.add_argument ('--list-cpu-types',    action=ListCpu,     nargs=0)
+    parser.add_argument ('--cpu-type',          dest='cputype',     type=str, default='TimingSimpleCPU',
+                                                choices=ObjectList.cpu_list.get_names() )
     parser.add_argument ('-n', '--num-cpus',    dest='numcpus',     type=int, default=1, metavar='N')
     
     # main memory
@@ -125,7 +128,7 @@ def build_system_and_process ( args ):
     system.mem_ctrl.port = system.membus.mem_side_ports
 
     # -- CPUs and L1 Caches --------------------------------------------------
-    system.cpus = [ TimingSimpleCPU ()
+    system.cpus = [ ObjectList.cpu_list.get ( args.cputype ) ()
             for _ in range ( args.numcpus ) ]
     for cpu in system.cpus:
         cpu.icache = Cache (

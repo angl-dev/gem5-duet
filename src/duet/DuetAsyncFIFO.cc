@@ -4,6 +4,10 @@
 namespace gem5 {
 namespace duet {
 
+void DuetAsyncFIFO::UpstreamPort::recvFunctional ( PacketPtr pkt ) {
+    _owner->_downstream_port.sendFunctional ( pkt );
+}
+
 bool DuetAsyncFIFO::UpstreamPort::recvTimingReq ( PacketPtr pkt ) {
     return _owner->_upstream_ctrl->recv ( pkt );
 }
@@ -12,8 +16,8 @@ void DuetAsyncFIFO::UpstreamPort::recvRespRetry () {
     _owner->_upstream_ctrl->try_send ();
 }
 
-void DuetAsyncFIFO::UpstreamPort::recvFunctional ( PacketPtr pkt ) {
-    _owner->_downstream_port.sendFunctional ( pkt );
+bool DuetAsyncFIFO::UpstreamPort::recvTimingSnoopResp ( PacketPtr pkt ) {
+    return _owner->_upstream_ctrl->recv_snoop ( pkt );
 }
 
 bool DuetAsyncFIFO::DownstreamPort::recvTimingResp ( PacketPtr pkt ) {
@@ -24,19 +28,33 @@ void DuetAsyncFIFO::DownstreamPort::recvReqRetry () {
     _owner->_downstream_ctrl->try_send ();
 }
 
+void DuetAsyncFIFO::DownstreamPort::recvRetrySnoopResp () {
+    _owner->_downstream_ctrl->try_send ( true );
+}
+
+void DuetAsyncFIFO::DownstreamPort::recvTimingSnoopReq ( PacketPtr pkt ) {
+    _owner->_downstream_ctrl->recv_snoop ( pkt );
+}
+
 DuetAsyncFIFO::DuetAsyncFIFO ( const DuetAsyncFIFOParams & p )
-    : SimObject         ( p )
-    , _stage            ( p.stage )
-    , _capacity         ( p.capacity )
-    , _upstream_port    ( p.name + ".upstream_port", this )
-    , _downstream_port  ( p.name + ".downstream_port", this )
-    , _upstream_ctrl    ( p.upstream_ctrl )
-    , _downstream_ctrl  ( p.downstream_ctrl )
-    , _downward_fifo    ( p.capacity, nullptr )
-    , _upward_fifo      ( p.capacity, nullptr )
+    : SimObject             ( p )
+    , _stage                ( p.stage )
+    , _capacity             ( p.capacity )
+    , _is_snooping          ( p.snooping )
+    , _upstream_port        ( p.name + ".upstream_port", this )
+    , _downstream_port      ( p.name + ".downstream_port", this )
+    , _upstream_ctrl        ( p.upstream_ctrl )
+    , _downstream_ctrl      ( p.downstream_ctrl )
+    , _downward_fifo        ()
+    , _upward_fifo          ()
 {
-    _upstream_ctrl->_owner      = this;
-    _downstream_ctrl->_owner    = this;
+    _upstream_ctrl->_owner          = this;
+    _upstream_ctrl->_is_snooping    = p.snooping;
+    _upstream_ctrl->_push           = p.capacity;
+
+    _downstream_ctrl->_owner        = this;
+    _downstream_ctrl->_is_snooping  = p.snooping;
+    _downstream_ctrl->_push         = p.capacity;
 }
 
 Port & DuetAsyncFIFO::getPort ( const std::string & if_name

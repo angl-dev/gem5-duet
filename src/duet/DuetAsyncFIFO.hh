@@ -1,6 +1,8 @@
 #ifndef __DUET_ASYNC_FIFO_HH
 #define __DUET_ASYNC_FIFO_HH
 
+#include <list>
+
 #include "params/DuetAsyncFIFO.hh"
 #include "sim/sim_object.hh"
 #include "mem/port.hh"
@@ -38,9 +40,10 @@ private:
         }
 
     public:
-        void recvFunctional ( PacketPtr pkt ) override;
-        bool recvTimingReq ( PacketPtr pkt ) override;
-        void recvRespRetry () override;
+        void recvFunctional      ( PacketPtr pkt ) override;
+        bool recvTimingReq       ( PacketPtr pkt ) override;
+        void recvRespRetry       () override;
+        bool recvTimingSnoopResp ( PacketPtr pkt ) override;
     };
 
     /* Port to Downstream */
@@ -61,14 +64,29 @@ private:
             _owner->_upstream_port.sendRangeChange ();
         }
 
+        bool isSnooping () const override {
+            return _owner->_is_snooping;
+        }
+
+        Tick recvAtomicSnoop ( PacketPtr pkt ) override {
+            panic ( "recvAtomicSnoop unimpl." );
+        }
+
+        void recvFunctionalSnoop ( PacketPtr pkt ) override {
+            _owner->_upstream_port.sendFunctionalSnoop ( pkt );
+        }
+
     public:
-        bool recvTimingResp ( PacketPtr pkt ) override;
-        void recvReqRetry () override;
+        void recvTimingSnoopReq ( PacketPtr pkt ) override;
+        bool recvTimingResp     ( PacketPtr pkt ) override;
+        void recvRetrySnoopResp () override;
+        void recvReqRetry       () override;
     };
 
 private:
-    Cycles          _stage;       // synchronizer stage
-    unsigned        _capacity;    // fifo capacity
+    Cycles          _stage;         // synchronizer stage
+    unsigned        _capacity;      // fifo capacity
+    bool            _is_snooping;   // am I snooping?
 
     UpstreamPort    _upstream_port;
     DownstreamPort  _downstream_port;
@@ -76,8 +94,8 @@ private:
     DuetAsyncFIFOCtrl * _upstream_ctrl;
     DuetAsyncFIFOCtrl * _downstream_ctrl;
 
-    std::vector<PacketPtr>  _downward_fifo;
-    std::vector<PacketPtr>  _upward_fifo;
+    std::list<PacketPtr>    _downward_fifo;
+    std::list<PacketPtr>    _upward_fifo;
 
 public:
     DuetAsyncFIFO ( const DuetAsyncFIFOParams & p );

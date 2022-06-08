@@ -22,54 +22,62 @@ private:
     class SyncEvent : public Event {
     private:
         DuetAsyncFIFOCtrl * _ctrl;
-        bool                _is_rptr;
-        unsigned            _incr;
+
+    public:
+        unsigned            push;   // number of credits returned to the push side
+        unsigned            pop;    // number of credits returned to the pop side
 
     public:
         SyncEvent (
                 DuetAsyncFIFOCtrl * ctrl
-                , bool              is_rptr
-                , unsigned          incr = 1
+                , unsigned          push = 0
+                , unsigned          pop = 0
                 )
             : Event     ( Default_Pri, AutoDelete )
             , _ctrl     ( ctrl )
-            , _is_rptr  ( is_rptr )
-            , _incr     ( incr )
+            , push      ( push )
+            , pop       ( pop )
         {}
 
         void process () override;
-        void incr ();
     };
 
     bool            _is_upstream;
+    bool            _is_snooping;
     DuetAsyncFIFO * _owner;
 
-    unsigned        _downward_wptr;
-    unsigned        _downward_rptr;
-    unsigned        _upward_wptr;
-    unsigned        _upward_rptr;
+    int             _push;  // push credit
+    int             _pop;   // pop credit
 
     bool            _is_peer_waiting_for_retry;
-    Cycles          _can_recv_pkt_on_and_after_cycle;
-
     bool            _is_this_waiting_for_retry;
+
+    //  for upstream, the peer is waiting for a snoop resp retry
+    //  for downstream, this object is waiting for a snoop resp retry
+    bool            _is_waiting_for_snoop_retry;
+
+    Cycles          _can_recv_pkt_on_and_after_cycle;
     Cycles          _can_send_pkt_on_and_after_cycle;
 
+
     EventFunctionWrapper            _e_try_try_send;
-    std::map <Tick, SyncEvent *>    _rsync_events;
-    std::map <Tick, SyncEvent *>    _wsync_events;
+    std::map <Tick, SyncEvent *>    _sync_events;
 
 private:
-    void _sync_rptr ( unsigned incr );
-    void _sync_wptr ( unsigned incr );
+    void _sync ( unsigned push, unsigned pop );
     void _try_try_send ();  // before we know if we are waiting for retry
-    void _schedule_incr_rptr ( Tick t );
-    void _schedule_incr_wptr ( Tick T );
+    void _schedule_sync ( Tick t, unsigned push = 0, unsigned pop = 0 );
 
 public:
     DuetAsyncFIFOCtrl ( const DuetAsyncFIFOCtrlParams & p );
-    bool recv ( PacketPtr pkt );
-    void try_send ();       // only if we are not waiting for retry, or we are asked to retry
+    bool recv ( PacketPtr pkt, bool is_snoop = false );
+    bool recv_snoop ( PacketPtr pkt );
+    // only if we are not waiting for retry, or we are asked to retry
+    void try_send (
+            bool    snoop   = false
+            , bool  or_else = false
+            );
+
 };
 
 }   // namespace duet
