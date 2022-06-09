@@ -3,6 +3,38 @@
 namespace gem5 {
 namespace duet {
 
+bool DuetReorderBuffer::Entry::match ( PacketPtr resp ) {
+
+    // trivial match
+    if ( resp == pkt || resp->req == req )
+        return true;
+
+    assert (  req->hasPaddr () );
+    assert ( !req->hasInstCount () );
+    assert (  req->hasSize () );
+    assert ( !req->isMasked () );
+    assert ( !req->hasAtomicOpFunctor () );
+    assert ( !req->hasVaddr () );
+    assert ( !req->hasPC () );
+
+    assert (  resp->req->hasPaddr () );
+    assert ( !resp->req->hasInstCount () );
+    assert (  resp->req->hasSize () );
+    assert ( !resp->req->isMasked () );
+    assert ( !resp->req->hasAtomicOpFunctor () );
+    assert ( !resp->req->hasVaddr () );
+    assert ( !resp->req->hasPC () );
+
+    // check a bunch of meta data
+    if ( resp->req->getArchFlags ()  != req->getArchFlags ()
+        || resp->req->getPaddr ()    != req->getPaddr ()
+        || resp->req->requestorId () != req->requestorId () )
+        return false;
+
+    // match command
+    return cmd.responseCommand () == resp->cmd.responseCommand ();
+}
+
 void DuetReorderBuffer::update () {
     // 1. if the downstream req buffer is empty, try to send one request
     if ( nullptr == downstream.req_buf ) {
@@ -38,15 +70,17 @@ void DuetReorderBuffer::update () {
 
     // 4. if the downstream resp buffer is not empty, update our list
     if ( nullptr != downstream.resp_buf ) {
+
         auto pkt = downstream.resp_buf;
         downstream.resp_buf = nullptr;
 
         bool found = false;
         for ( auto & entry : _buffer ) {
-            if ( entry.pkt == pkt ) {
+            if ( entry.match ( pkt ) ) {
                 assert ( Entry::SENT == entry.status );
-                entry.status = Entry::RESPONDED;
                 found = true;
+                entry.status = Entry::RESPONDED;
+                entry.pkt = pkt;
                 break;
             }
         }

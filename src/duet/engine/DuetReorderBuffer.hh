@@ -62,12 +62,18 @@ private:
     struct Entry {
         enum { UNSENT, SENT, RESPONDED }    status;
         PacketPtr                           pkt;
+        MemCmd                              cmd;
+        RequestPtr                          req;
 
         Entry ( decltype ( status ) status,
                 PacketPtr           pkt )
             : status    ( status )
             , pkt       ( pkt )
+            , cmd       ( pkt->cmd )
+            , req       ( pkt->req )
         {}
+
+        bool match ( PacketPtr resp ); 
     };
 
 // ===========================================================================

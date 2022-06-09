@@ -173,7 +173,7 @@ bool DuetAsyncFIFOCtrl::recv_snoop (
     if ( _is_upstream ) {
         // we can reject SnoopResp
         assert ( pkt->isResponse () );
-        return recv ( pkt );
+        return recv ( pkt, true );
     } else {
         // we must accept any incoming snoop request immediately
         assert ( pkt->isRequest () );
