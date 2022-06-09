@@ -79,6 +79,8 @@
 import atexit
 import os
 import sys
+import getpass
+import socket
 
 from os import mkdir, environ
 from os.path import abspath, dirname, expanduser
@@ -298,11 +300,13 @@ main.Append(CPPPATH=[Dir('ext')])
 # Add shared top-level headers
 main.Prepend(CPPPATH=Dir('include'))
 
-# Della-specific
-main.Prepend(CPPPATH=Dir('/tigress/angl/local/include'))
-main.Prepend(LIBPATH=[Dir('/tigress/angl/local/lib')])
-main.Prepend(LIBPATH=Dir('/tigress/angl/local/lib64'))
-main.Append(LIBS=['protobuf'])
+# angl@Della-specific
+if ( socket.gethostname().startswith ("della")
+        and getpass.getuser() == 'angl' ):
+    main.Prepend(CPPPATH=Dir('/tigress/angl/local/include'))
+    main.Prepend(LIBPATH=[Dir('/tigress/angl/local/lib')])
+    main.Prepend(LIBPATH=Dir('/tigress/angl/local/lib64'))
+    main.Append(LIBS=['protobuf'])
 
 ########################################################################
 #
