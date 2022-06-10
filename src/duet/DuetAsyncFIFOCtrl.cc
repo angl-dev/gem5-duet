@@ -77,6 +77,8 @@ void DuetAsyncFIFOCtrl::_try_try_send () {
     // 2. check if we can send in this cycle
     if ( curCycle () < _can_send_pkt_on_and_after_cycle ) {
         DPRINTF ( DuetAsyncFIFO, "Not trying to send b/c: once per cycle\n" );
+        if ( !_e_try_try_send.scheduled () )
+            schedule ( _e_try_try_send, clockEdge ( Cycles(1) ) );
         return;
     }
 
