@@ -16,7 +16,7 @@ CFLAGS := -O3 -D_XOPEN_SOURCE=500 -D_POSIX_C_SOURCE=200112 -std=c11 -g -fno-stri
 BIN := ../bin/riscv/linux/$(APP)
 
 ifeq ($(APP),barnes)
-CFLAGS += -DWITH_NO_OPTIONAL_LOCKS -DVERBOSE
+CFLAGS += -DWITH_NO_OPTIONAL_LOCKS -DVERBOSE -DQUADPOLE
 endif
 
 all: $(BIN) $(BIN).duet
