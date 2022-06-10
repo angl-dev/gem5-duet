@@ -33,6 +33,8 @@ void DuetBarnesAccumulatorFunctor::finishup () {
 
     uint64_t cnt = lane->get_engine()->template get_constant <uint64_t> ( caller_id, "cnt" );
     lane->get_engine()->template set_constant <uint64_t> ( caller_id, "cnt", ++cnt );
+
+    lane->get_engine()->stats_exec_done ( caller_id );
 }
 
 }   // namespace duet

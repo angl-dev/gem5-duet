@@ -37,7 +37,3 @@ class DuetBarnesQuadEngine (DuetEngine):
                 DuetBarnesQuadComputeLane (),
                 DuetBarnesAccumulatorLane ()
                 ]
-
-    @property
-    def maxaddr (self):
-        return self.baseaddr + ( self.num_callers + 1 ) * 128

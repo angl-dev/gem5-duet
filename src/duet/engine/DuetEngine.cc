@@ -5,6 +5,7 @@
 #include "sim/system.hh"
 #include "sim/process.hh"
 #include "base/trace.hh"
+#include "mem/packet_access.hh"
 
 namespace gem5 {
 namespace duet {
@@ -18,6 +19,37 @@ AddrRangeList DuetEngine::SRIPort::getAddrRanges () const {
     return list;
 }
 
+DuetEngine::Stats::Stats ( DuetEngine & engine )
+    : statistics::Group ( &engine )
+    , engine            ( engine )
+    , ADD_STAT ( blocktime, statistics::units::Cycle::get (),
+            "Total time (#cycles) that the SRI channel is blocked" )
+    , ADD_STAT ( busytime,  statistics::units::Cycle::get (),
+            "Total time (#cycles) that the engine is busy" )
+    , ADD_STAT ( waittime,  statistics::units::Cycle::get (),
+            "Execution waiting time (#cycles)" )
+    , ADD_STAT ( exectime,  statistics::units::Cycle::get (),
+            "Execution time (#cycles)" )
+{}
+
+void DuetEngine::Stats::regStats () {
+    statistics::Group::regStats ();
+
+    blocktime.flags ( statistics::total );
+    blocktime.reset ();
+
+    busytime.flags ( statistics::total );
+    busytime.reset ();
+
+    waittime
+        .init  ( 0, 2000, 100 )
+        .flags ( statistics::nozero | statistics::nonan | statistics::dist );
+
+    exectime
+        .init  ( 0, 1000, 100 )
+        .flags ( statistics::nozero | statistics::nonan | statistics::dist );
+}
+
 DuetEngine::DuetEngine ( const DuetEngineParams & p )
     : DuetClockedObject         ( p )
     , _system                   ( p.system )
@@ -27,6 +59,7 @@ DuetEngine::DuetEngine ( const DuetEngineParams & p )
     , _baseaddr                 ( p.baseaddr )
     , _lanes                    ( p.lanes )
     , _sri_port                 ( p.name + ".sri_port", this )
+    , _stats                    ( *this )
 {
     _requestorId = p.system->getRequestorId (this);
 
@@ -40,6 +73,11 @@ DuetEngine::DuetEngine ( const DuetEngineParams & p )
 }
 
 void DuetEngine::update () {
+    if ( nullptr != _sri_port.req_buf && !_is_blocked ) {
+        _is_blocked = true;
+        _blocked_from = curCycle ();
+    }
+
     // -- pull phase ---------------------------------------------------------
     //  1. if SRI request buffer contains a load, and SRI response buffer is
     //     unused: check if we can handle the access
@@ -126,6 +164,11 @@ void DuetEngine::update () {
     //  3. call push_phase on all lanes
     for ( auto & lane : _lanes )
         lane->push_phase ();
+
+    if ( nullptr == _sri_port.req_buf && _is_blocked ) {
+        _is_blocked = false;
+        _stats.blocktime += curCycle () - _blocked_from;
+    }
 }
 
 void DuetEngine::exchange () {
@@ -255,6 +298,53 @@ bool DuetEngine::can_pull_from_chan (
     }
 
     return false;
+}
+
+void DuetEngine::stats_call_recvd (
+        DuetFunctor::caller_id_t    caller_id
+        )
+{
+    _received [caller_id].push_back ( curCycle() );
+}
+
+void DuetEngine::stats_exec_start (
+        DuetFunctor::caller_id_t    caller_id
+        )
+{
+    Cycles recvd = _received [caller_id].front ();
+    _received [caller_id].pop_front ();
+
+    Cycles wait = curCycle () - recvd;
+    _stats.waittime.sample ( wait, 1 );
+
+    _started [caller_id].push_back ( curCycle () );
+
+    if ( !_is_busy ) {
+        _is_busy    = true;
+        _busy_from  = curCycle ();
+    }
+}
+
+void DuetEngine::stats_exec_done (
+        DuetFunctor::caller_id_t    caller_id
+        )
+{
+    Cycles start = _started [caller_id].front ();
+    _started [caller_id].pop_front ();
+
+    Cycles exec = curCycle () - start;
+    _stats.exectime.sample ( exec, 1 );
+
+    for ( auto & l : _received )
+        if ( !l.empty () )
+            return;
+
+    for ( auto & l : _started )
+        if ( !l.empty () )
+            return;
+
+    _is_busy = false;
+    _stats.busytime += curCycle () - _busy_from;
 }
 
 bool DuetEngine::try_send_mem_req_one (
@@ -426,6 +516,13 @@ void DuetEngine::init () {
 
     for ( DuetFunctor::caller_id_t i = 0; i < get_num_interlane_chans (); ++i)
         _chan_int_by_id.emplace_back   ( new DuetFunctor::chan_data_t () );
+
+    _is_blocked     = false;
+    _blocked_from   = Cycles (0);
+    _is_busy        = false;
+    _busy_from      = Cycles (0);
+    _received.resize ( get_num_callers () );
+    _started.resize ( get_num_callers () );
 }
 
 template <>

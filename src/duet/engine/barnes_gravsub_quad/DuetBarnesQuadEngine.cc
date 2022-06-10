@@ -34,7 +34,12 @@ bool DuetBarnesQuadEngine::handle_softreg_write (
 
     switch ( softreg_id ) {
     case 0:     // arg
-        return handle_argchan_push ( caller_id, value );
+        if ( handle_argchan_push ( caller_id, value ) ) {
+            stats_call_recvd ( caller_id );
+            return true;
+        } else {
+            return false;
+        }
 
     case 1:     // pos0x
         set_constant ( caller_id, "pos0x", value );

@@ -40,6 +40,8 @@ DuetFunctor * DuetBarnesQuadMemLane::new_functor () {
                 memcpy ( data.get(), &id.id, sizeof (DuetFunctor::caller_id_t) );
             }
 
+            engine->stats_exec_start ( id.id );
+
             return f;
         }
     }

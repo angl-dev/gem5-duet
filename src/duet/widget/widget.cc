@@ -1,6 +1,7 @@
 #include "duet/widget/widget.hh"
 #include "sim/system.hh"
 #include "sim/process.hh"
+#include "mem/packet_access.hh"
 
 namespace gem5 {
 namespace duet {

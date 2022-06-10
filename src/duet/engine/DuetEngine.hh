@@ -5,6 +5,7 @@
 #include <memory>
 #include <utility>
 #include <map>
+#include <list>
 
 #include "params/DuetEngine.hh"
 #include "duet/DuetClockedObject.hh"
@@ -12,6 +13,7 @@
 #include "mem/request.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
+#include "base/statistics.hh"
 
 namespace gem5 {
 
@@ -62,6 +64,29 @@ private:
         void recvRangeChange () override {};
     };
 
+    /* Statistics */
+    struct Stats : public statistics::Group {
+
+        const DuetEngine & engine;
+
+        // total time (#cycles) when the SRI interface is blocked
+        statistics::Scalar          blocktime;
+
+        // total time (#cycles) that the engine is busy
+        statistics::Scalar          busytime;
+
+        // execution waiting time (#cycles)
+        statistics::Distribution    waittime;
+
+        // execution time (#cycles)
+        statistics::Distribution    exectime;
+
+        // -- Methods --------------------------------------------------------
+        Stats ( DuetEngine & engine );
+
+        void regStats () override;
+    };
+
 public:
     typedef uint32_t            softreg_id_t;
 
@@ -76,6 +101,7 @@ private:
     Addr                                        _baseaddr;
     std::vector <DuetLane*>                     _lanes;
     SRIPort                                     _sri_port;
+    Stats                                       _stats;
     std::vector <MemoryPort>                    _mem_ports;
 
 private:
@@ -103,6 +129,14 @@ private:
 private:
     // we need a requestor ID to be able to send out memory requests
     RequestorID                 _requestorId;
+
+    // for statistics collection
+    bool                                _is_blocked;
+    Cycles                              _blocked_from;
+    bool                                _is_busy;
+    Cycles                              _busy_from;
+    std::vector <std::list <Cycles>>    _received;
+    std::vector <std::list <Cycles>>    _started;
 
 // ===========================================================================
 // == Implementing Virtual Methods ===========================================
@@ -168,6 +202,10 @@ public:
 
         this->template set_constant <uint64_t> ( caller_id, key, v );
     }
+
+    void stats_call_recvd ( DuetFunctor::caller_id_t caller_id );
+    void stats_exec_start ( DuetFunctor::caller_id_t caller_id );
+    void stats_exec_done  ( DuetFunctor::caller_id_t caller_id );
 
 // ===========================================================================
 // == API for Subclasses =====================================================
