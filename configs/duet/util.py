@@ -83,7 +83,7 @@ def add_common_arguments (parser):
 
     # Common arguments for Duet engines
     parser.add_argument ('--async-fifo-stages',     dest='afstage', type=int, default=2)
-    parser.add_argument ('--async-fifo-capacity',   dest='afcap',   type=int, default=256)
+    parser.add_argument ('--async-fifo-capacity',   dest='afcap',   type=int, default=64)
 
 # ============================================================================
 # == Build Base System based on Arguments ====================================

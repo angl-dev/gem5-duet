@@ -15,6 +15,14 @@ DuetFunctor::caller_id_t DuetBarnesQuadEngine::get_num_interlane_chans () const 
     return 3;
 }
 
+unsigned DuetBarnesQuadEngine::get_max_stats_waittime () const {
+    return 5000;
+}
+
+unsigned DuetBarnesQuadEngine::get_max_stats_exectime () const {
+    return 2000;
+}
+
 bool DuetBarnesQuadEngine::handle_softreg_write (
         DuetEngine::softreg_id_t    softreg_id
         , uint64_t                  value

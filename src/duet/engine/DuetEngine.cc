@@ -41,12 +41,22 @@ void DuetEngine::Stats::regStats () {
     busytime.flags ( statistics::total );
     busytime.reset ();
 
+    unsigned max_waittime = engine.get_max_stats_waittime ();
+    if ( max_waittime < 100 ) max_waittime = 100;
+    unsigned waittime_bucketsize = max_waittime / 10;
+    if ( waittime_bucketsize > 100 ) waittime_bucketsize = 100;
+
     waittime
-        .init  ( 0, 2000, 100 )
+        .init  ( 0, max_waittime, waittime_bucketsize )
         .flags ( statistics::nozero | statistics::nonan | statistics::dist );
 
+    unsigned max_exectime = engine.get_max_stats_exectime ();
+    if ( max_exectime < 100 ) max_exectime = 100;
+    unsigned exectime_bucketsize = max_exectime / 10;
+    if ( exectime_bucketsize > 100 ) exectime_bucketsize = 100;
+
     exectime
-        .init  ( 0, 1000, 100 )
+        .init  ( 0, max_exectime, exectime_bucketsize )
         .flags ( statistics::nozero | statistics::nonan | statistics::dist );
 }
 

@@ -20,6 +20,8 @@ protected:
     softreg_id_t             get_num_softregs ()        const override final;
     DuetFunctor::caller_id_t get_num_memory_chans ()    const override final;
     DuetFunctor::caller_id_t get_num_interlane_chans () const override final;
+    unsigned                 get_max_stats_waittime ()  const override final;
+    unsigned                 get_max_stats_exectime ()  const override final;
 
     bool handle_softreg_write (
             softreg_id_t                softreg_id

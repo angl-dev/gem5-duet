@@ -21,7 +21,7 @@ class DuetBarnesQuadComputeLane (DuetPipelinedLane):
 
     transition_from_stage   = [0,1,2,3,4,5,6,7,8,  9,10,11]
     transition_to_stage     = [1,2,3,4,5,6,7,8,9, 10,11,11]
-    transition_latency      = [1,1,1,1,1,1,1,1,1,150, 1, 1]
+    transition_latency      = [1,1,1,1,1,1,1,1,1,141, 7, 3]
     interval                = 14
 
 class DuetBarnesQuadEngine (DuetEngine):

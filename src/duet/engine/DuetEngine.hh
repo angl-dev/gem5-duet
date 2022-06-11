@@ -235,8 +235,10 @@ protected:
 // ===========================================================================
 protected:
     virtual softreg_id_t             get_num_softregs ()        const = 0;
-    virtual DuetFunctor::caller_id_t get_num_memory_chans ()    const { return 0; };
-    virtual DuetFunctor::caller_id_t get_num_interlane_chans () const { return 0; };
+    virtual DuetFunctor::caller_id_t get_num_memory_chans ()    const { return 0; }
+    virtual DuetFunctor::caller_id_t get_num_interlane_chans () const { return 0; }
+    virtual unsigned                 get_max_stats_waittime ()  const { return 2000; }
+    virtual unsigned                 get_max_stats_exectime ()  const { return 1000; }
 
     virtual bool handle_softreg_write (
             softreg_id_t    softreg_id

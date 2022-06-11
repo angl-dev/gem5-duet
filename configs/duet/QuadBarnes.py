@@ -30,7 +30,7 @@ for engine in system.engines:
             clock = args.duetclk,
             voltage_domain = VoltageDomain () )
     engine.sri_afifo = DuetAsyncFIFO (
-            stage = 2, capacity = 256, 
+            stage = args.afstage, capacity = args.afcap, 
             upstream_clk_domain = system.clk_domain,
             downstream_clk_domain = engine.clk_domain
             )
@@ -55,29 +55,31 @@ for engine in system.engines:
                 mshrs               = args.l1d_mshrs,
                 tgts_per_mshr       = 8,
                 addr_ranges         = [ AddrRange ( args.memsize ) ],
+                write_buffers       = 8,
                 )
         engine.rob.downstream = engine.softcache.cpu_side
         engine.softcache.mem_side = engine.mem_afifo.upstream_port
 
     else:
         engine.mem_afifo = DuetAsyncFIFO (
-                stage = 4, capacity = 256,
+                stage = args.afstage, capacity = args.afcap,
                 upstream_clk_domain = engine.clk_domain,
                 downstream_clk_domain = system.clk_domain
                 )
         engine.rob.downstream = engine.mem_afifo.upstream_port
-    
+
     if args.duetcache in ["hard", "both"]:
         engine.hardcache = Cache (
                 clk_domain          = system.clk_domain,
-                size                = args.l1d_size,
-                assoc               = args.l1d_assoc,
-                tag_latency         = args.l1d_tlat,
-                data_latency        = args.l1d_dlat,
-                response_latency    = args.l1d_rlat,
-                mshrs               = args.l1d_mshrs,
+                size                = args.l2_size,
+                assoc               = args.l2_assoc,
+                tag_latency         = args.l2_tlat,
+                data_latency        = args.l2_dlat,
+                response_latency    = args.l2_rlat,
+                mshrs               = args.l2_mshrs,
                 tgts_per_mshr       = 8,
                 addr_ranges         = [ AddrRange ( args.memsize ) ],
+                write_buffers       = args.afcap,
                 )
         engine.mem_afifo.downstream_port = engine.hardcache.cpu_side
         engine.hardcache.mem_side = system.llcbus.cpu_side_ports
