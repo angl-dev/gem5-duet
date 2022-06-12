@@ -14,8 +14,8 @@ from common.Options import ListCpu, ListMem
 # ============================================================================
 def add_common_arguments (parser):
     # global configurations
-    parser.add_argument ('--sys-clock',         dest='clk',         type=str, default='1GHz')
-    parser.add_argument ('--cacheline-size',    dest='clsize',      type=int, default=64)
+    parser.add_argument ('--sys-clock',         dest='clk',         type=str, default='1.5GHz')
+    parser.add_argument ('--cacheline-size',    dest='clsize',      type=int, default=16)
     parser.add_argument ('--duet-baseaddr',     dest='duet_addr',   type=int, default=0xE00000000)
     parser.add_argument ('--duet-memspace',     dest='duet_size',   type=str, default='1GB')
     
@@ -32,21 +32,21 @@ def add_common_arguments (parser):
     parser.add_argument ('--mem-size',          dest='memsize',     type=str, default='8192MB')
 
     # main bus
-    parser.add_argument ('--mem-xbar-width',    dest='mxwidth',     type=int, default=32)
-    parser.add_argument ('--mem-xbar-latency',  dest='mxlat',       type=int, default=0)
+    parser.add_argument ('--mem-xbar-width',    dest='mxwidth',     type=int, default=None)
+    parser.add_argument ('--mem-xbar-latency',  dest='mxlat',       type=int, default=10)
     
     # cache hierarchy (2-level snoopy cache)
     #   - CPUs' L1D caches
-    parser.add_argument ('--l1d-size',          dest='l1d_size',    type=str, default='64kB')
-    parser.add_argument ('--l1d-assoc',         dest='l1d_assoc',   type=int, default=4)
+    parser.add_argument ('--l1d-size',          dest='l1d_size',    type=str, default='32kB')
+    parser.add_argument ('--l1d-assoc',         dest='l1d_assoc',   type=int, default=8)
     parser.add_argument ('--l1d-tag-latency',   dest='l1d_tlat',    type=int, default=1)
     parser.add_argument ('--l1d-data-latency',  dest='l1d_dlat',    type=int, default=1)
     parser.add_argument ('--l1d-resp-latency',  dest='l1d_rlat',    type=int, default=1)
     parser.add_argument ('--l1d-mshrs',         dest='l1d_mshrs',   type=int, default=8)
     
     #   - CPUs' L1I caches
-    parser.add_argument ('--l1i-size',          dest='l1i_size',    type=str, default='64kB')
-    parser.add_argument ('--l1i-assoc',         dest='l1i_assoc',   type=int, default=4)
+    parser.add_argument ('--l1i-size',          dest='l1i_size',    type=str, default='32kB')
+    parser.add_argument ('--l1i-assoc',         dest='l1i_assoc',   type=int, default=8)
     parser.add_argument ('--l1i-tag-latency',   dest='l1i_tlat',    type=int, default=1)
     parser.add_argument ('--l1i-data-latency',  dest='l1i_dlat',    type=int, default=1)
     parser.add_argument ('--l1i-resp-latency',  dest='l1i_rlat',    type=int, default=1)
@@ -56,9 +56,9 @@ def add_common_arguments (parser):
     parser.add_argument ('--l2',                dest='l2_en',       action='store_true', default=False)
     parser.add_argument ('--l2-size',           dest='l2_size',     type=str, default='256kB')
     parser.add_argument ('--l2-assoc',          dest='l2_assoc',    type=int, default=8)
-    parser.add_argument ('--l2-tag-latency',    dest='l2_tlat',     type=int, default=2)
-    parser.add_argument ('--l2-data-latency',   dest='l2_dlat',     type=int, default=2)
-    parser.add_argument ('--l2-resp-latency',   dest='l2_rlat',     type=int, default=2)
+    parser.add_argument ('--l2-tag-latency',    dest='l2_tlat',     type=int, default=4)
+    parser.add_argument ('--l2-data-latency',   dest='l2_dlat',     type=int, default=4)
+    parser.add_argument ('--l2-resp-latency',   dest='l2_rlat',     type=int, default=4)
     parser.add_argument ('--l2-mshrs',          dest='l2_mshrs',    type=int, default=16)
     
     #   - LLC cache
@@ -70,8 +70,8 @@ def add_common_arguments (parser):
     parser.add_argument ('--llc-mshrs',         dest='llc_mshrs',   type=int, default=16)
 
     #   - LLC bus
-    parser.add_argument ('--llc-xbar-width',    dest='llcxwidth',   type=int, default=32)
-    parser.add_argument ('--llc-xbar-latency',  dest='llcxlat',     type=int, default=0)
+    parser.add_argument ('--llc-xbar-width',    dest='llcxwidth',   type=int, default=None)
+    parser.add_argument ('--llc-xbar-latency',  dest='llcxlat',     type=int, default=10)
     
     # workload
     parser.add_argument ('-b', '--binary',      dest='binary',      type=str)
@@ -82,7 +82,7 @@ def add_common_arguments (parser):
     parser.add_argument ('--wait-gdb',          dest='gdb', action='store_true', default=False)
 
     # Common arguments for Duet engines
-    parser.add_argument ('--async-fifo-stages',     dest='afstage', type=int, default=2)
+    parser.add_argument ('--async-fifo-stages',     dest='afstage', type=int, default=4)
     parser.add_argument ('--async-fifo-capacity',   dest='afcap',   type=int, default=64)
 
 # ============================================================================
@@ -97,6 +97,7 @@ def build_system_and_process ( args ):
     system = System (
             mem_mode = 'timing',
             mem_ranges = [memrange, ncrange],
+            cache_line_size = args.clsize
             )
     system.clk_domain = SrcClockDomain (
             clock = args.clk,
@@ -109,18 +110,20 @@ def build_system_and_process ( args ):
                 range = memrange )
             )
     system.membus = SystemXBar (
-            width = args.mxwidth,
+            width = args.mxwidth or args.clsize,
+            frontend_latency = 1,
             forward_latency = args.mxlat,
             response_latency = args.mxlat
             )
     system.ocdbus = NoncoherentXBar (
-            width = 32,
-            frontend_latency = 0,
-            forward_latency = 0,
-            response_latency = 0
+            width = args.clsize,
+            frontend_latency = 1,
+            forward_latency = args.llcxlat,
+            response_latency = args.llcxlat
             )
     system.llcbus = L2XBar (
-            width = args.llcxwidth,
+            width = args.llcxwidth or args.clsize,
+            frontend_latency = 1,
             forward_latency = args.llcxlat,
             response_latency = args.llcxlat
             )
@@ -151,9 +154,9 @@ def build_system_and_process ( args ):
                 tgts_per_mshr       = 8,
                 addr_ranges         = memrange
                 )
-        # Note: extra latency is added between l2 xbar and SRI
+        # Note: latency is added on the ocdbus
         cpu.xbar = NoncoherentXBar (
-                width               = 32,
+                width               = args.clsize,
                 frontend_latency    = 0,
                 forward_latency     = 0,
                 response_latency    = 0
