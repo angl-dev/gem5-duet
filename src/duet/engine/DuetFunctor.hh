@@ -103,6 +103,7 @@ protected:
     #define enqueue_req(chan, type, size, addr) _enqueue_req  ( __COUNTER__, (chan), (type), (size), (addr) )
     #define enqueue_data(chan, data)            _enqueue_data ( __COUNTER__, (chan), (data) )
     #define dequeue_data(chan, data)            _dequeue_data ( __COUNTER__, (chan), (data) )
+    #define dequeue_token(chan)                 _dequeue_token( __COUNTER__, (chan) )
 
     /* -----------------------------------------------------------------------
      * enqueue_req:
@@ -177,6 +178,27 @@ protected:
         raw_data_t data_ = chan.front ();
         chan.pop_front ();
         memcpy ( &data, data_.get(), sizeof(T) );
+    }
+
+    /* -----------------------------------------------------------------------
+     * dequeue_token:
+     *  Dequeue a store ACK from the specified channel
+     * -------------------------------------------------------------------- */
+    void _dequeue_token (
+            stage_t             stage
+            , chan_data_t &     chan
+            )
+    {
+        // update state
+        _stage              = stage;
+        _blocking_chan_id   = _id_by_chan [
+            reinterpret_cast <void *> (&chan) ];
+
+        // transfer control back to the main thread
+        _yield ();
+
+        // resume execution
+        chan.pop_front ();
     }
 
 // ===========================================================================

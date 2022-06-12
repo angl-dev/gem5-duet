@@ -132,26 +132,27 @@ void DuetEngine::update () {
         }
     }
 
-    //  2. if memory response buffer contains a valid load response, see if we
-    //     can receive it
+    //  2. if memory response buffer contains a valid response, see if we
+    //     can accept it
     std::vector <bool> chan_pushed ( get_num_memory_chans(), false );
     for ( auto & port : _mem_ports ) {
         auto pkt = port.resp_buf;
 
         if ( nullptr != pkt ) {
 
-            if ( pkt->isRead () ) {
-                uint16_t chan_id = pkt->req->getFlags() & Request::ARCH_BITS;
-                if ( chan_pushed [ chan_id ] ) continue;
+            uint16_t chan_id = pkt->req->getFlags() & Request::ARCH_BITS;
+            if ( chan_pushed [ chan_id ] ) continue;
 
-                auto & chan = _chan_rdata_by_id [chan_id];
+            auto & chan = _chan_rdata_by_id [chan_id];
 
-                if ( 0 == _fifo_capacity
-                        || chan->size () < _fifo_capacity )
-                {
-                    DPRINTF ( DuetEngine, "Accept RESP %s @CHAN %u\n",
-                            pkt->print(), chan_id );
+            if ( 0 == _fifo_capacity
+                    || chan->size () < _fifo_capacity )
+            {
+                DPRINTF ( DuetEngine, "Accept RESP %s @CHAN %u\n",
+                        pkt->print(), chan_id );
+                port.resp_buf = nullptr;
 
+                if ( pkt->isRead() ) {
                     DuetFunctor::raw_data_t data (
                             new uint8_t[ pkt->getSize() ]);
                     std::memcpy (
@@ -160,12 +161,11 @@ void DuetEngine::update () {
                             pkt->getSize()
                             );
                     chan->push_back ( data );
-                    chan_pushed [ chan_id ] = true;
-                    port.resp_buf = nullptr;
-                    delete pkt;
+                } else {
+                    chan->emplace_back ();  // nullptr
                 }
-            } else {
-                port.resp_buf = nullptr;
+
+                chan_pushed [ chan_id ] = true;
                 delete pkt;
             }
         }

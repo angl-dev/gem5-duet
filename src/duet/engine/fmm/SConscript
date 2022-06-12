@@ -1,0 +1,16 @@
+Import('*')
+
+SimObject('DuetFMM.py', sim_objects=[
+    'DuetFmmVLIFrontendLane',
+    'DuetFmmVLIComputeLane',
+    'DuetFmmVLIBackendLane',
+    'DuetFmmEngine'
+    ])
+
+Source('DuetFmmVLIBackendFunctor.cc')
+Source('DuetFmmVLIBackendLane.cc')
+Source('DuetFmmVLIComputeFunctor.cc')
+Source('DuetFmmVLIComputeLane.cc')
+Source('DuetFmmVLIEngine.cc')
+Source('DuetFmmVLIFrontendFunctor.cc')
+Source('DuetFmmVLIFrontendLane.cc')
