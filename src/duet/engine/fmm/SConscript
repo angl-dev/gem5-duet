@@ -1,10 +1,10 @@
 Import('*')
 
-SimObject('DuetFMM.py', sim_objects=[
+SimObject('DuetFmmVLI.py', sim_objects=[
     'DuetFmmVLIFrontendLane',
     'DuetFmmVLIComputeLane',
     'DuetFmmVLIBackendLane',
-    'DuetFmmEngine'
+    'DuetFmmVLIEngine'
     ])
 
 Source('DuetFmmVLIBackendFunctor.cc')

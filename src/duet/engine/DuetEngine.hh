@@ -111,6 +111,7 @@ private:
     std::vector <std::unique_ptr <DuetFunctor::chan_data_t>> _chan_ret_by_id;
 
     //  memory channels -- shared among callers
+    std::vector <unsigned>                                   _reservations_by_id;
     std::vector <std::unique_ptr <DuetFunctor::chan_req_t>>  _chan_req_by_id;
     std::vector <std::unique_ptr <DuetFunctor::chan_data_t>> _chan_wdata_by_id;
     std::vector <std::unique_ptr <DuetFunctor::chan_data_t>> _chan_rdata_by_id;
@@ -128,7 +129,7 @@ private:
 // ===========================================================================
 private:
     // we need a requestor ID to be able to send out memory requests
-    RequestorID                 _requestorId;
+    RequestorID                         _requestorId;
 
     // for statistics collection
     bool                                _is_blocked;
@@ -213,6 +214,7 @@ public:
 protected:
     bool try_send_mem_req_one (
             uint16_t                    chan_id
+            , bool                      reserve = false
             );
 
     bool handle_argchan_push (
@@ -225,10 +227,22 @@ protected:
             , uint64_t                & value
             );
 
+    template <typename T>
     void set_constant (
             std::string                 key
-            , uint64_t                  value
-            );
+            , const T                 & value
+            )
+    {
+        uint64_t v = 0;
+
+        if ( sizeof (T) == sizeof (uint64_t) ) {
+            v = *( reinterpret_cast <const uint64_t *> ( &value ) );
+        } else {
+            memcpy ( &v, &value, sizeof (T) );
+        }
+
+        this->template set_constant <uint64_t> ( key, v );
+    }
 
 // ===========================================================================
 // == Virtual Methods ========================================================
@@ -273,6 +287,12 @@ template <>
 void DuetEngine::set_constant <uint64_t> (
         DuetFunctor::caller_id_t    caller_id
         , std::string               key
+        , const uint64_t            & value
+        );
+
+template <>
+void DuetEngine::set_constant <uint64_t> (
+        std::string                 key
         , const uint64_t            & value
         );
 

@@ -39,7 +39,6 @@ public:
             enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), dst_box_ptr + 1856 + (i << 4) );
             enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), dst_box_ptr + 1864 + (i << 4) );
         }
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (S64), dst_box_ptr + 3272 );
 
         cost += V_LIST_COST ( Expansion_Terms );
 

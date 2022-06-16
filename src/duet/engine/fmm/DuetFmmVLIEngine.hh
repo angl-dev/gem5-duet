@@ -11,9 +11,13 @@ namespace duet {
  * Softregs:
  *  0: "expansion_terms"
  *  1: undefined
+ *  2: undefined
+ *  3: undefined
  *
- *  2: "cnt" for caller 0
- *  3: "cost" for caller 0
+ *  4: arg for caller 0
+ *  5: "cnt" for caller 0
+ *  6: "cost" for caller 0
+ *  7: undefined
  *
  *  ...
  *
@@ -31,7 +35,8 @@ namespace duet {
  */
 class DuetFmmVLIEngine : public DuetEngine {
 private:
-    static const constexpr softreg_id_t num_softreg_per_caller  = 2;
+    static const constexpr softreg_id_t num_softreg_per_caller  = 4;
+    std::vector <bool>      _argchan_got_one;
 
 public:
     DuetFmmVLIEngine ( const DuetFmmVLIEngineParams & p )

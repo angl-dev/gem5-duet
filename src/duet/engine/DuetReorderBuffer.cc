@@ -3,46 +3,20 @@
 namespace gem5 {
 namespace duet {
 
-bool DuetReorderBuffer::Entry::match ( PacketPtr resp ) {
-
-    // trivial match
-    if ( resp == pkt || resp->req == req )
-        return true;
-
-    assert (  req->hasPaddr () );
-    assert ( !req->hasInstCount () );
-    assert (  req->hasSize () );
-    assert ( !req->isMasked () );
-    assert ( !req->hasAtomicOpFunctor () );
-    assert ( !req->hasVaddr () );
-    assert ( !req->hasPC () );
-
-    assert (  resp->req->hasPaddr () );
-    assert ( !resp->req->hasInstCount () );
-    assert (  resp->req->hasSize () );
-    assert ( !resp->req->isMasked () );
-    assert ( !resp->req->hasAtomicOpFunctor () );
-    assert ( !resp->req->hasVaddr () );
-    assert ( !resp->req->hasPC () );
-
-    // check a bunch of meta data
-    if ( resp->req->getArchFlags ()  != req->getArchFlags ()
-        || resp->req->getPaddr ()    != req->getPaddr ()
-        || resp->req->requestorId () != req->requestorId () )
-        return false;
-
-    // match command
-    return cmd.responseCommand () == resp->cmd.responseCommand ();
-}
-
 void DuetReorderBuffer::update () {
     // 1. if the downstream req buffer is empty, try to send one request
     if ( nullptr == downstream.req_buf ) {
-        for ( auto & entry : _buffer ) {
-            if ( Entry::UNSENT == entry.status ) {
-                downstream.req_buf = entry.pkt;
-                entry.status = Entry::SENT;
-                break;
+        for ( auto it = _buffer.begin (); _buffer.end () != it; ++it ) {
+            if ( Entry::UNSENT == it->status ) {
+                downstream.req_buf = it->pkt;
+
+                if ( MemCmd::WriteClean == it->pkt->cmd ) {
+                    it = _buffer.erase ( it );
+                    break;
+                } else {
+                    it->status = Entry::SENT;
+                    break;
+                }
             }
         }
     }
@@ -62,7 +36,9 @@ void DuetReorderBuffer::update () {
             && !_buffer.empty () )
     {
         auto & entry = _buffer.front ();
-        if ( Entry::RESPONDED == entry.status ) {
+        if ( Entry::RESPONDED == entry.status
+                && curTick () >= entry.readyAfter )
+        {
             upstream.resp_buf = entry.pkt;
             _buffer.pop_front ();
         }
@@ -74,18 +50,19 @@ void DuetReorderBuffer::update () {
         auto pkt = downstream.resp_buf;
         downstream.resp_buf = nullptr;
 
-        bool found = false;
         for ( auto & entry : _buffer ) {
-            if ( entry.match ( pkt ) ) {
+            if ( pkt->req == entry.req ) {
+
                 assert ( Entry::SENT == entry.status );
-                found = true;
                 entry.status = Entry::RESPONDED;
                 entry.pkt = pkt;
-                break;
+                entry.readyAfter = clockEdge ( Cycles(1) )
+                    + pkt->headerDelay + pkt->payloadDelay;
+                return;
             }
         }
 
-        assert ( found );
+        assert ( false );
     }
 }
 

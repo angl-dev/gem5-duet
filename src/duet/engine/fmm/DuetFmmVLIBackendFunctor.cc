@@ -47,6 +47,7 @@ void DuetFmmVLIBackendFunctor::run () {
             , _expansion_terms
             , _cost
            );
+}
 
 void DuetFmmVLIBackendFunctor::finishup () {
     lane->get_engine()->template set_constant <S64> (
@@ -56,8 +57,6 @@ void DuetFmmVLIBackendFunctor::finishup () {
     lane->get_engine()->template set_constant <uint64_t> ( caller_id, "cnt", ++cnt );
 
     lane->get_engine()->stats_exec_done ( caller_id );
-}
-
 }
 
 }   // namespace duet

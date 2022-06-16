@@ -166,6 +166,7 @@ void DuetEngine::update () {
                 }
 
                 chan_pushed [ chan_id ] = true;
+                --_reservations_by_id [ chan_id ];
                 delete pkt;
             }
         }
@@ -359,10 +360,20 @@ void DuetEngine::stats_exec_done (
 
 bool DuetEngine::try_send_mem_req_one (
         uint16_t                    chan_id
+        , bool                      reserve
         )
 {
+    // check if we can make a reservation
+    if ( reserve
+            && 0 != _fifo_capacity
+            && (_reservations_by_id [ chan_id ]
+                + _chan_rdata_by_id [ chan_id ]->size()
+                >= _fifo_capacity )
+       )
+    { return false; }
+
     // check if there is a pending request in that channel
-    auto & chan_req     = _chan_req_by_id   [chan_id];
+    auto & chan_req     = _chan_req_by_id [ chan_id ];
     if ( chan_req->empty () )
         return false;
 
@@ -386,7 +397,7 @@ bool DuetEngine::try_send_mem_req_one (
     RequestPtr gem5req = std::make_shared <Request> (
             paddr,
             req.size,
-            (Request::FlagsType) chan_id,
+            Request::ARCH_BITS & (Request::FlagsType) chan_id,
             _requestorId
             );
 
@@ -405,6 +416,7 @@ bool DuetEngine::try_send_mem_req_one (
         if ( chan_data->empty () )  // data not ready
             return false;
         pkt = new Packet ( gem5req, Packet::makeWriteCmd ( gem5req ) );
+        // pkt = new Packet ( gem5req, MemCmd::WriteClean );
         pkt->allocate ();
         pkt->setData ( chan_data->front().get() );
         chan_data->pop_front ();
@@ -440,6 +452,7 @@ bool DuetEngine::try_send_mem_req_one (
 
     // pop channels
     chan_req->pop_front ();
+    ++_reservations_by_id[chan_id];
     return true;
 }
 
@@ -480,9 +493,10 @@ bool DuetEngine::handle_retchan_pull (
     return true;
 }
 
-void DuetEngine::set_constant (
+template <>
+void DuetEngine::set_constant <uint64_t> (
         std::string                 key
-        , uint64_t                  value
+        , const uint64_t          & value
         )
 {
     auto ret = _constants.emplace ( key, value );
@@ -519,6 +533,7 @@ void DuetEngine::init () {
     }
 
     for ( DuetFunctor::caller_id_t i = 0; i < get_num_memory_chans (); ++i) {
+        _reservations_by_id.emplace_back ( 0 );
         _chan_req_by_id.emplace_back   ( new DuetFunctor::chan_req_t () );
         _chan_wdata_by_id.emplace_back ( new DuetFunctor::chan_data_t () );
         _chan_rdata_by_id.emplace_back ( new DuetFunctor::chan_data_t () );

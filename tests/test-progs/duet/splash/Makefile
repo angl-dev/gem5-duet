@@ -19,6 +19,10 @@ ifeq ($(APP),barnes)
 CFLAGS += -DWITH_NO_OPTIONAL_LOCKS -DVERBOSE -DQUADPOLE
 endif
 
+ifeq ($(APP),fmm)
+CFLAGS += -DPROFILE
+endif
+
 all: $(BIN) $(BIN).duet
 
 $(SRCS): %.c : %.c.in

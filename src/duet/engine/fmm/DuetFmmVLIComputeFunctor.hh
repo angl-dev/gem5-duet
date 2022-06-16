@@ -4,14 +4,16 @@
 #ifdef __DUET_HLS
     #include "hls/functor.hh"
     #include <ac_complex.h>
+    #include <ac_std_float.h>
     #include <ac_math.h>
 
     typedef ac_complex <ac_ieee_float64> Complex;
     #define sqrt(x) (x).sqrt<AC_RND_CONV,true>()
-    #define log(x) ac_log_pwl(x)
+    #define log(x) ac_math::ac_log_pwl<ac_ieee_float64>(x)
 #else /* #ifdef __DUET_HLS */
     #include "duet/engine/DuetFunctor.hh"
     #include "duet/engine/complex.hh"
+    #include <assert.h>
     
     namespace gem5 {
     namespace duet {
@@ -21,31 +23,6 @@
 #endif /* #ifdef __DUET_HLS */
 
 class DuetFmmVLIComputeFunctor : public DuetFunctor {
-private:
-    constexpr static double Inv ( int i ) {
-        if ( i == 0 ) return i;
-        else return 1.0 / i;
-    }
-
-    constexpr static double OverInc ( int i ) {
-        return i / ( i + 1 );
-    }
-
-    constexpr static double C ( int i, int j ) {
-        if ( j == 0 )
-            return 1.0;
-        else if ( j == 1 )
-            return (double) i;
-        else if ( j == i + 1 )
-            return 0.0;
-        else if ( j >= 2 && j <= i )
-            return C ( i - 1, j ) + C ( i - 1, j - 1 );
-        else {
-            assert ( false );
-            return 0.0;
-        }
-    }
-
 public:
     #pragma hls_design top
     void kernel (
@@ -60,7 +37,11 @@ public:
         const static Complex One ( RealOne, RealZero );
         const static Complex Zero ( RealZero, RealZero );
 
-#define MAX_EXPANSION_TERMS 40
+#ifdef __DUET_HLS
+#include "fmm/DuetFmmVLIStaticData.hh"
+#else /* #ifdef __DUET_HLS */
+#include "duet/engine/fmm/DuetFmmVLIStaticData.hh"
+#endif /* #ifdef __DUET_HLS */
 
         // local variables
         Complex z0_pow_minus_n[MAX_EXPANSION_TERMS];
@@ -81,20 +62,21 @@ public:
 
         Complex z0 = source_pos - dest_pos;
         Complex z0_inv = One / z0;
+        Double z0_abs_lg = log(sqrt(z0.mag_sqr()));
 
-        z0_pow_minus_n[0] = One;
-        temp_exp[0] = mp_expansion[0];
+        Complex carry = z0_pow_minus_n[0] = One;
+        Complex mpe0 = temp_exp[0] = mp_expansion[0];
         for ( int i = 1; i < Expansion_Terms; ++i ) {
-            z0_pow_minus_n[i] = z0_pow_minus_n[i - 1] * z0_inv;
-            temp_exp[i] = z0_pow_minus_n[i] * mp_expansion[i];
+            carry = z0_pow_minus_n[i] = carry * z0_inv;
+            temp_exp[i] = carry * mp_expansion[i];
         }
 
         for ( int i = 0; i < Expansion_Terms; ++i ) {
             Complex result_exp = Zero;
+            Complex zpmn = z0_pow_minus_n[i];
 
             for ( int j = 1; j < Expansion_Terms; ++j ) {
-                Double r = C ( i+j-1, j-1 );
-                Complex temp ( r, RealZero );
+                Complex temp ( C[i+j-1][j-1], RealZero );
                 temp *= temp_exp[j];
                 if ( (j&0x1) == 0x0 ) {
                     result_exp += temp;
@@ -103,18 +85,16 @@ public:
                 }
             }
 
-            result_exp *= z0_pow_minus_n[i];
+            result_exp *= zpmn;
 
             if ( i == 0 ) {
-                Double r = log(sqrt(z0.mag_sqr()));
-                Complex temp ( r, RealZero );
-                temp *= mp_expansion[0];
+                Complex temp ( z0_abs_lg, RealZero );
+                temp *= mpe0;
                 result_exp += temp;
             } else {
-                Double r = Inv(i);
-                Complex temp ( r, RealZero );
-                temp *= z0_pow_minus_n[i];
-                temp *= mp_expansion[0];
+                Complex temp ( Inv[i], RealZero );
+                temp *= zpmn;
+                temp *= mpe0;
                 result_exp -= temp;
             }
 
