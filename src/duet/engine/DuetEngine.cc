@@ -69,6 +69,7 @@ DuetEngine::DuetEngine ( const DuetEngineParams & p )
     , _baseaddr                 ( p.baseaddr )
     , _lanes                    ( p.lanes )
     , _sri_port                 ( p.name + ".sri_port", this )
+    , _writeclean               ( p.writeclean )
     , _stats                    ( *this )
 {
     _requestorId = p.system->getRequestorId (this);
@@ -107,10 +108,25 @@ void DuetEngine::update () {
         }
     }
 
-    //  2. send as many memory requests as we can
+    //  2. if ROBs contain ack'ed responses, push into return channels
+    std::vector <bool> chan_pushed ( get_num_memory_chans(), false );
+    for ( auto & rob : _rob ) {
+        auto & entry = rob.front ();
+        if ( ROBEntry::RESPONDED == entry.status
+                && curTick () >= entry.readyAfter
+                && !chan_pushed [entry.chan_id] )
+        {
+            _chan_rdata_by_id [entry.chan_id]->push_back ( entry.data );
+            -- _reservations_by_id [entry.chan_id];
+            chan_pushed [entry.chan_id] = true;
+            rob.pop_front ();
+        }
+    }
+
+    //  3. send as many memory requests as we can
     try_send_mem_req_all ();
 
-    //  3. call pull_phase on all lanes
+    //  4. call pull_phase on all lanes
     for ( auto & lane : _lanes )
         lane->pull_phase ();
 
@@ -134,42 +150,36 @@ void DuetEngine::update () {
 
     //  2. if memory response buffer contains a valid response, see if we
     //     can accept it
-    std::vector <bool> chan_pushed ( get_num_memory_chans(), false );
-    for ( auto & port : _mem_ports ) {
+    for ( int i = 0; i < _mem_ports.size (); ++i ) {
+        auto & port = _mem_ports[i];
         auto pkt = port.resp_buf;
+        if ( nullptr == pkt ) continue;
 
-        if ( nullptr != pkt ) {
+        // search ROB
+        for ( auto & entry : _rob[i] ) {
+            if ( pkt->req == entry.req ) {
 
-            uint16_t chan_id = pkt->req->getFlags() & Request::ARCH_BITS;
-            if ( chan_pushed [ chan_id ] ) continue;
+                assert ( ROBEntry::SENT == entry.status );
+                entry.status = ROBEntry::RESPONDED;
+                entry.readyAfter = clockEdge ( Cycles(1) )
+                    + pkt->headerDelay + pkt->payloadDelay;
 
-            auto & chan = _chan_rdata_by_id [chan_id];
-
-            if ( 0 == _fifo_capacity
-                    || chan->size () < _fifo_capacity )
-            {
-                DPRINTF ( DuetEngine, "Accept RESP %s @CHAN %u\n",
-                        pkt->print(), chan_id );
-                port.resp_buf = nullptr;
-
-                if ( pkt->isRead() ) {
-                    DuetFunctor::raw_data_t data (
-                            new uint8_t[ pkt->getSize() ]);
+                if ( pkt->isRead () ) {
+                    entry.data.reset ( new uint8_t [ pkt->getSize() ] );
                     std::memcpy (
-                            data.get(),
-                            pkt->getPtr<uint8_t>(),
-                            pkt->getSize()
+                            entry.data.get (),
+                            pkt->getPtr <uint8_t> (),
+                            pkt->getSize ()
                             );
-                    chan->push_back ( data );
-                } else {
-                    chan->emplace_back ();  // nullptr
                 }
 
-                chan_pushed [ chan_id ] = true;
-                --_reservations_by_id [ chan_id ];
+                port.resp_buf = nullptr;
                 delete pkt;
+                break;
             }
         }
+
+        assert ( nullptr == port.resp_buf );
     }
 
     //  3. call push_phase on all lanes
@@ -379,7 +389,8 @@ bool DuetEngine::try_send_mem_req_one (
 
     // find a memory port whose req_buf is empty
     auto port = _mem_ports.begin ();
-    for ( ; _mem_ports.end () != port; ++port )
+    auto rob = _rob.begin ();
+    for ( ; _mem_ports.end () != port; ++port, ++rob )
         if ( nullptr == port->req_buf )
             break;
     if ( _mem_ports.end () == port )
@@ -415,8 +426,10 @@ bool DuetEngine::try_send_mem_req_one (
     case DuetFunctor::REQTYPE_ST:
         if ( chan_data->empty () )  // data not ready
             return false;
-        pkt = new Packet ( gem5req, Packet::makeWriteCmd ( gem5req ) );
-        // pkt = new Packet ( gem5req, MemCmd::WriteClean );
+        if ( _writeclean )
+            pkt = new Packet ( gem5req, MemCmd::WriteClean );
+        else
+            pkt = new Packet ( gem5req, Packet::makeWriteCmd ( gem5req ) );
         pkt->allocate ();
         pkt->setData ( chan_data->front().get() );
         chan_data->pop_front ();
@@ -449,6 +462,11 @@ bool DuetEngine::try_send_mem_req_one (
     port->req_buf = pkt;
     DPRINTF ( DuetEngine, "Send REQ %s @CHAN %u\n",
             pkt->print (), chan_id );
+
+    // register in reorder buffer
+    rob->emplace_back ( chan_id, pkt,
+            pkt->cmd == MemCmd::WriteClean ? ROBEntry::RESPONDED
+            : ROBEntry::SENT );
 
     // pop channels
     chan_req->pop_front ();
@@ -541,6 +559,8 @@ void DuetEngine::init () {
 
     for ( DuetFunctor::caller_id_t i = 0; i < get_num_interlane_chans (); ++i)
         _chan_int_by_id.emplace_back   ( new DuetFunctor::chan_data_t () );
+
+    _rob.resize ( _mem_ports.size() );
 
     _is_blocked     = false;
     _blocked_from   = Cycles (0);

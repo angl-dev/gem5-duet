@@ -64,6 +64,27 @@ private:
         void recvRangeChange () override {};
     };
 
+    /* Reorder Buffer Entry */
+    struct ROBEntry {
+        DuetFunctor::caller_id_t            chan_id;
+        enum { UNSENT, SENT, RESPONDED }    status;
+        RequestPtr                          req;
+        Tick                                readyAfter;
+        DuetFunctor::raw_data_t             data;
+
+        ROBEntry (
+                DuetFunctor::caller_id_t    chan_id
+                , PacketPtr                 pkt
+                , decltype ( status )       status = UNSENT
+                )
+            : chan_id       ( chan_id )
+            , status        ( status )
+            , req           ( pkt->req ) 
+            , readyAfter    ( 0 )
+            , data          ( nullptr )
+        {}
+    };
+
     /* Statistics */
     struct Stats : public statistics::Group {
 
@@ -101,9 +122,13 @@ private:
     Addr                                        _baseaddr;
     std::vector <DuetLane*>                     _lanes;
     SRIPort                                     _sri_port;
+    bool                                        _writeclean;
     Stats                                       _stats;
     std::vector <MemoryPort>                    _mem_ports;
 
+// ===========================================================================
+// == Non-Parameterized Member Variables =====================================
+// ===========================================================================
 private:
     // -- Channels -----------------------------------------------------------
     //  Argument/Return channels: one per caller
@@ -119,15 +144,14 @@ private:
     //  inter-lane channels -- shared among callers
     std::vector <std::unique_ptr <DuetFunctor::chan_data_t>> _chan_int_by_id;
 
+    // -- Reorder Buffer for Memory Responses --------------------------------
+    std::vector <std::list <ROBEntry>>  _rob;   // one ROB per memory port
+
     // -- Constant registers -------------------------------------------------
-    std::map <std::string, uint64_t>                _constants;
+    std::map <std::string, uint64_t>    _constants;
     std::vector <std::unique_ptr <std::map <std::string, uint64_t>>>
         _constants_per_caller;
 
-// ===========================================================================
-// == Non-Parameterized Member Variables =====================================
-// ===========================================================================
-private:
     // we need a requestor ID to be able to send out memory requests
     RequestorID                         _requestorId;
 

@@ -117,7 +117,8 @@ def build_system_and_process ( args ):
             width = args.mxwidth or args.clsize,
             frontend_latency = 1,
             forward_latency = args.mxlat,
-            response_latency = args.mxlat
+            response_latency = args.mxlat,
+            snoop_response_latency = args.mxlat
             )
     system.ocdbus = NoncoherentXBar (
             width = args.clsize,
@@ -249,9 +250,6 @@ def integrate ( args, system, process, engine ):
     engine.sri_afifo.upstream_port = system.ocdbus.mem_side_ports
     engine.sri_afifo.downstream_port = engine.sri_port
     
-    engine.rob = DuetReorderBuffer ()
-    engine.mem_ports = engine.rob.upstream
-
     # create soft cache if specified
     if args.duetcache in ["soft", "both"]:
         engine.softcache = Cache (
@@ -264,7 +262,7 @@ def integrate ( args, system, process, engine ):
                 tgts_per_mshr       = 8,
                 addr_ranges         = [ AddrRange ( args.memsize ) ],
                 )
-        engine.rob.downstream = engine.softcache.cpu_side
+        engine.mem_ports = engine.softcache.cpu_side
 
     # create hard cache if specified
     if args.duetcache in ["hard", "both"]:
@@ -299,21 +297,23 @@ def integrate ( args, system, process, engine ):
             engine.softcache.mem_side = engine.mem_afifo.upstream_port
             engine.mem_afifo.downstream_port = system.llcbus.cpu_side_ports
         else:
-            engine.rob.downstream = engine.mem_afifo.upstream_port
+            engine.mem_ports = engine.mem_afifo.upstream_port
             engine.mem_afifo.downstream_port = engine.hardcache.cpu_side
 
     elif args.duetcache == "both":
         engine.xbar = L2XBar (
-                clk_domain          = system.clk_domain,
-                width               = args.clsize,
-                frontend_latency    = ratio,
-                forward_latency     = args.afstage,
-                response_latency    = ratio * args.afstage + 1
+                clk_domain              = system.clk_domain,
+                width                   = args.clsize,
+                frontend_latency        = ratio,
+                forward_latency         = args.afstage,
+                response_latency        = ratio * args.afstage + 1,
+                snoop_response_latency  = ratio + args.afstage
                 )
         engine.softcache.mem_side = engine.xbar.cpu_side_ports
         engine.hardcache.cpu_side = engine.xbar.mem_side_ports
 
     else:
+        engine.writeclean = True
         engine.xbar = NoncoherentXBar (
                 clk_domain          = system.clk_domain,
                 width               = args.clsize,
@@ -321,7 +321,7 @@ def integrate ( args, system, process, engine ):
                 forward_latency     = args.afstage,
                 response_latency    = ratio * args.afstage + 1
                 )
-        engine.rob.downstream = engine.xbar.cpu_side_ports
+        engine.mem_ports = engine.xbar.cpu_side_ports
         if args.duetcache == "none":
             engine.xbar.mem_side_ports = system.llcbus.cpu_side_ports
         else:
