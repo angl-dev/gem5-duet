@@ -109,6 +109,16 @@ protected:
             )
     { chan.read (); }
 
+    template <typename T_data, typename T_packed>
+    void unpack (
+            const T_packed    & packed
+            , int               offset
+            , T_data          & data
+            )
+    {
+        data = packed.template slc <T_data::width> ( T_data::width * offset );
+    }
+
 // ===========================================================================
 // == API for testbench ======================================================
 // ===========================================================================
@@ -165,6 +175,14 @@ void DuetFunctor::dequeue_data <DuetFunctor::Float> (
     U64 packed = chan.read ();
     data.set_data ( packed.template slc <32> (0) );
 }
+
+template <>
+void DuetFunctor::unpack <DuetFunctor::Float, DuetFunctor::U64> (
+        const DuetFunctor::U64    & packed
+        , int                       offset
+        , DuetFunctor::Float      & data
+        )
+{ data.set_data ( this->template unpack <U32> ( packed, offset ) ); }
 
 // specialization for double (float64)
 template <>

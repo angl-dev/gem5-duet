@@ -201,6 +201,20 @@ protected:
         chan.pop_front ();
     }
 
+    template <typename T_data, typename T_packed>
+    void unpack (
+            const T_packed    & packed
+            , int               offset
+            , T_data          & data
+            )
+    {
+        static T_packed const mask  = ( (sizeof T_data) << 3 ) - 1;
+               T_packed const shift = ( (sizeof T_data) * offset ) << 3;
+
+        T_packed shifted = ( packed >> shift ) & mask;
+        data = *( reinterpret_cast <const T_data *> ( &shifted ) );
+    }
+
 // ===========================================================================
 // == Member Variables (GEM5) ================================================
 // ===========================================================================
