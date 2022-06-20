@@ -208,8 +208,8 @@ protected:
             , T_data          & data
             )
     {
-        static T_packed const mask  = ( (sizeof T_data) << 3 ) - 1;
-               T_packed const shift = ( (sizeof T_data) * offset ) << 3;
+        static T_packed const mask  = ( (sizeof(T_data)) << 3 ) - 1;
+               T_packed const shift = ( (sizeof(T_data)) * offset ) << 3;
 
         T_packed shifted = ( packed >> shift ) & mask;
         data = *( reinterpret_cast <const T_data *> ( &shifted ) );
