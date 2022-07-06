@@ -165,12 +165,21 @@ void DuetEngine::update () {
                     + pkt->headerDelay + pkt->payloadDelay;
 
                 if ( pkt->isRead () ) {
-                    entry.data.reset ( new uint8_t [ pkt->getSize() ] );
-                    std::memcpy (
-                            entry.data.get (),
-                            pkt->getPtr <uint8_t> (),
-                            pkt->getSize ()
-                            );
+                    entry.data.reset ( new uint8_t [ entry.size ] );
+                    if ( pkt->getSize () != entry.size ) {
+                        auto baseaddr = pkt->getBlockAddr ( _system->cacheLineSize() );
+                        std::memcpy (
+                                entry.data.get (),
+                                pkt->getPtr <uint8_t> () + pkt->getAddr() - baseaddr,
+                                entry.size
+                                );
+                    } else {
+                        std::memcpy (
+                                entry.data.get (),
+                                pkt->getPtr <uint8_t> (),
+                                entry.size
+                                );
+                    }
                 }
 
                 port.resp_buf = nullptr;
@@ -404,28 +413,44 @@ bool DuetEngine::try_send_mem_req_one (
     panic_if ( !_process->pTable->translate ( req.addr, paddr ),
             "Memory translation failed" );
 
-    // make GEM5 request based on duet request
-    RequestPtr gem5req = std::make_shared <Request> (
-            paddr,
-            req.size,
-            Request::ARCH_BITS & (Request::FlagsType) chan_id,
-            _requestorId
-            );
-
     // get the data channel in case we need it 
     auto & chan_data    = _chan_wdata_by_id [chan_id];
 
     // create packets
+    RequestPtr gem5req = nullptr;
     PacketPtr pkt = nullptr;
     switch ( req.type ) {
     case DuetFunctor::REQTYPE_LD:
-        pkt = new Packet ( gem5req, Packet::makeReadCmd ( gem5req ) );
+        if ( _writeclean ) {
+            gem5req = std::make_shared <Request> (
+                    paddr & ~(Addr(_system->cacheLineSize()-1)),
+                    _system->cacheLineSize (),
+                    Request::ARCH_BITS & (Request::FlagsType) chan_id,
+                    _requestorId
+                    );
+            pkt = new Packet ( gem5req, MemCmd::ReadExReq );
+        } else {
+            gem5req = std::make_shared <Request> (
+                    paddr,
+                    req.size,
+                    Request::ARCH_BITS & (Request::FlagsType) chan_id,
+                    _requestorId
+                    );
+            pkt = new Packet ( gem5req, Packet::makeReadCmd ( gem5req ) );
+        }
         pkt->allocate ();
         break;
 
     case DuetFunctor::REQTYPE_ST:
         if ( chan_data->empty () )  // data not ready
             return false;
+
+        gem5req = std::make_shared <Request> (
+                paddr,
+                req.size,
+                Request::ARCH_BITS & (Request::FlagsType) chan_id,
+                _requestorId
+                );
         if ( _writeclean )
             pkt = new Packet ( gem5req, MemCmd::WriteClean );
         else
@@ -464,9 +489,9 @@ bool DuetEngine::try_send_mem_req_one (
             pkt->print (), chan_id );
 
     // register in reorder buffer
-    rob->emplace_back ( chan_id, pkt,
-            pkt->cmd == MemCmd::WriteClean ? ROBEntry::RESPONDED
-            : ROBEntry::SENT );
+    rob->emplace_back ( chan_id, pkt, req.size,
+            pkt->cmd.needsResponse () ? ROBEntry::SENT
+            : ROBEntry::RESPONDED );
 
     // pop channels
     chan_req->pop_front ();

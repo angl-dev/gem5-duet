@@ -69,17 +69,20 @@ private:
         DuetFunctor::caller_id_t            chan_id;
         enum { UNSENT, SENT, RESPONDED }    status;
         RequestPtr                          req;
+        uint8_t                             size;
         Tick                                readyAfter;
         DuetFunctor::raw_data_t             data;
 
         ROBEntry (
                 DuetFunctor::caller_id_t    chan_id
                 , PacketPtr                 pkt
+                , uint8_t                   size
                 , decltype ( status )       status = UNSENT
                 )
             : chan_id       ( chan_id )
             , status        ( status )
             , req           ( pkt->req ) 
+            , size          ( size )
             , readyAfter    ( 0 )
             , data          ( nullptr )
         {}
