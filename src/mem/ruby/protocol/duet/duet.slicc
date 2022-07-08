@@ -1,0 +1,6 @@
+protocol "Duet";
+
+include "MESI_Three_Level.slicc";
+include "duet-msg.sm";
+include "duet-squire.sm";
+include "duet-proxy.sm";

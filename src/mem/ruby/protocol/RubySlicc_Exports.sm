@@ -274,6 +274,10 @@ enumeration(MachineType, desc="...", default="MachineType_NULL") {
     Memory,      desc="Memory controller interface";
     MiscNode,    desc="CHI protocol Misc Node";
     NULL,        desc="null mach type";
+
+    // Duet-related
+    SquireCache, desc="Duet's eFPGA-side Squire Cache";
+    ProxyCache,  desc="Duet's eFPGA-side Proxy Cache";
 }
 
 // MessageSizeType

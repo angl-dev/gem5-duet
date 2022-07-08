@@ -1,0 +1,49 @@
+enumeration ( SquireMsgType, desc="Message types from Squire to Proxy" )
+{
+  RD,       desc="Read cacheline";
+  WT,       desc="Write-through";
+}
+
+enumeration ( ProxyMsgType, desc="Message types from Proxy to Squire" )
+{
+  DATA,     desc="Response to RD";
+  WT_ACK,   desc="Acknowledge to WT";
+  WT_INV,   desc="Acknowledge to WT, with invalidation";
+  INV,      desc="Invalidation";
+}
+
+structure ( SquireMsg, desc="Message from Squire to Proxy", interface="Message" )
+{
+  MessageSizeType MessageSize,  desc="Size category of the message";
+  SquireMsgType   type,         desc="Message type";
+  Addr            addr,         desc="Physical address of the cache line";
+  DataBlock       data,         desc="Data block. WT only";
+  WriteMask       mask,         desc="Write mask. WT only";
+
+  // XXX: why are these needed?
+  bool functionalRead ( Packet * pkt )
+  {
+    if ( type == SquireMsgType::WT ) {
+      return testAndReadMask ( addr, data, pkt, mask );
+    } else {
+      return false;
+    }
+  }
+
+  bool functionalWrite ( Packet * pkt )
+  {
+    return false;
+  }
+}
+
+structure ( ProxyMsg, desc="Messge from Proxy to Squire", interface="Message" )
+{
+  MessageSizeType MessageSize,  desc="Size category of the message";
+  ProxyMsgType    type,         desc="Message type";
+  DataBlock       data,         desc="Data block. DATA only";
+  Addr            addr,         desc="Physical address of the cache line. INV only";
+
+  // XXX: whye are these needed?
+  bool functionalRead ( Packet * pkt ) { return false; }
+  bool functionalWrite ( Packet * pkt ) { return false; }
+}
