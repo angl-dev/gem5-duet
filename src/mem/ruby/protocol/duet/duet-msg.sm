@@ -21,19 +21,8 @@ structure ( SquireMsg, desc="Message from Squire to Proxy", interface="Message" 
   WriteMask       mask,         desc="Write mask. WT only";
 
   // XXX: why are these needed?
-  bool functionalRead ( Packet * pkt )
-  {
-    if ( type == SquireMsgType::WT ) {
-      return testAndReadMask ( addr, data, pkt, mask );
-    } else {
-      return false;
-    }
-  }
-
-  bool functionalWrite ( Packet * pkt )
-  {
-    return false;
-  }
+  bool functionalRead ( Packet * pkt ) { return false; }
+  bool functionalWrite ( Packet * pkt ) { return false; }
 }
 
 structure ( ProxyMsg, desc="Messge from Proxy to Squire", interface="Message" )
