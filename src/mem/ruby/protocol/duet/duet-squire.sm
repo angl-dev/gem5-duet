@@ -69,7 +69,7 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
     bool isPresent(Addr);
   }
 
-  TBETable TBEs, template="<TBE>", constructor="m_number_of_TBEs";
+  TBETable TBEs, template="<SquireCache_TBE>", constructor="m_number_of_TBEs";
 
   // ========================================================================
   // -- Inherited Methods from AbstractController ---------------------------
@@ -123,7 +123,7 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
     error ( "Functional read unimpl for Squire Cache." );
   }
 
-  void functionalWrite (Addr addr, Packet * pkt) {
+  int functionalWrite (Addr addr, Packet * pkt) {
     error ( "Functional write unimpl for Squire Cache." );
   }
 
@@ -170,11 +170,11 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
 
           if (in_msg.type == ProxyMsgType:DATA) {
             assert (tbe.pendingLd);
-            assert (is_invalid (cache_entry));
+            assert (is_invalid (entry));
             trigger (Event:LdAck, in_msg.addr, entry, tbe);
           } else if (in_msg.type == ProxyMsgType:DATA_INV) {
             assert (tbe.pendingLd);
-            assert (is_invalid (cache_entry));
+            assert (is_invalid (entry));
             trigger (Event:LdInv, in_msg.addr, entry, tbe);
           } else if (in_msg.type == ProxyMsgType:WT_ACK) {
             assert (tbe.numPendingSts > 0);
@@ -201,10 +201,10 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
         if (in_msg.Type == RubyRequestType:LD) {
           // check if the TBE has up-to-date write data
           int offset := getOffset (in_msg.PhysicalAddress);
-          if (missInTBE ( offset, in_msg.size, tbe )) {
+          if (missInTBE ( offset, in_msg.Size, tbe )) {
             // handle it in the cache entry
             trigger (Event:Ld, in_msg.LineAddress, entry, tbe);
-          } else if (hitInTBE ( offset, in_msg.size, tbe )) {
+          } else if (hitInTBE ( offset, in_msg.Size, tbe )) {
             trigger (Event:LdHitTBE, in_msg.LineAddress, entry, tbe);
           } else {
             trigger (Event:LdStallTBE, in_msg.LineAddress, entry, tbe);
@@ -269,18 +269,20 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
     assert (is_valid (tbe));
 
     peek (request_in, RubyRequest) {
-      sequencer.writeCallback (address, in_msg.WTData);     // immediate ACK
       tbe.numPendingSts := tbe.numPendingSts + 1;
       tbe.data.copyPartial (in_msg.WTData, in_msg.writeMask);
       tbe.mask.orMask (in_msg.writeMask);
 
       enqueue (request_out, SquireMsg, latency) {
         out_msg.MessageSize := MessageSizeType:Data;
-        out_msg.type        := SquireMsgType:ST;
+        out_msg.type        := SquireMsgType:WT;
         out_msg.addr        := address;
         out_msg.data        := in_msg.WTData;
         out_msg.mask        := in_msg.writeMask;
       }
+
+      DataBlock data := in_msg.WTData;
+      sequencer.writeCallback (address, data);  // immediate ACK
     }
   }
   
@@ -311,7 +313,8 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
 
   action ( ls_ldFillStaled, "ls", desc="Load miss filled with stale data" ) {
     peek ( response_in, ProxyMsg ) {
-      sequencer.readCallback (address, msg_in.data, true);
+      DataBlock data := in_msg.data;
+      sequencer.readCallback (address, data, true);
     }
   }
 
@@ -400,7 +403,7 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
   }
 
   transition ({I, V}, LdStallTBE) {
-    ph_profMiss;
+    pm_profMiss;
     z_stallAndWaitMandatoryQueue;
   }
 

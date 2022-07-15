@@ -45,7 +45,7 @@ machine ( MachineType:ProxyCache, "eFPGA's Proxy Cache" )
     SSM,  AccessPermission:Read_Only,   desc="Issued GETX";
     ISI,  AccessPermission:Busy,        desc="Issued GETS but saw INV before receiving ACK";
     MI,   AccessPermission:Busy,        desc="Repl in M state";
-    SINK, AccessPermission::Busy,       desc="Waiting for WB_Acks from L2";
+    SINK, AccessPermission:Busy,        desc="Waiting for WB_Acks from L2";
   }
 
   // ========================================================================
@@ -479,8 +479,8 @@ machine ( MachineType:ProxyCache, "eFPGA's Proxy Cache" )
     set_tbe(TBEs[address]);
 
     peek ( request_in, SquireMsg ) {
-      tbe.DataBlk := msg_in.data;
-      tbe.WTMask  := msg_in.mask;
+      tbe.DataBlk := in_msg.data;
+      tbe.WTMask  := in_msg.mask;
     }
   }
 
