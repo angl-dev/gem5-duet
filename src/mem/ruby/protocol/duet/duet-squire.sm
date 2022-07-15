@@ -34,16 +34,18 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
 
     // From the Proxy
     LdAck,      desc="Load ack from the Proxy";
+    LdInv,      desc="Load ack from the Proxy, with invalidation";
     StAck,      desc="Store ack from the Proxy";
-    StInv,      desc="Store ack with invalidation from the Proxy"; 
     Inv,        desc="Invalidation from the Proxy";
+
+    // StInv,      desc="Store ack with invalidation from the Proxy"; 
   }
 
   // ========================================================================
   // -- Structures ----------------------------------------------------------
   // ========================================================================
   // -- Cache Entry --
-  structure ( CacheEntry, desc="Cache entry", interface="AbstractCacheEntry" )
+  structure ( Entry, desc="Cache entry", interface="AbstractCacheEntry" )
   {
     State       state,  desc="Cache state";
     DataBlock   data,   desc="Data in the block";
@@ -56,7 +58,7 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
     DataBlock   data,                     desc="Buffered write data";
     WriteMask   mask,                     desc="Byte mask of buffered write";
     bool pendingLd,     default="false",  desc="Is there a pending load?";
-    int numPendingSts,  default="0",      desc="Number of un-acked write-thrus";
+    int  numPendingSts, default="0",      desc="Number of un-acked write-thrus";
   }
 
   structure ( TBETable, external="yes" )
@@ -75,6 +77,7 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
   Tick clockEdge ();
   Cycles ticksToCycles(Tick t);
   void set_cache_entry (AbstractCacheEntry b);
+  void unset_cache_entry();
   void set_tbe (TBE b);
   void unset_tbe ();
   void wakeUpAllBuffers (Addr a);
@@ -83,35 +86,36 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
   // ========================================================================
   // -- Methods -------------------------------------------------------------
   // ========================================================================
-  CacheEntry getCacheEntry (Addr addr), return_by_pointer="yes" {
-    return static_cast (CacheEntry, "pointer", cache.lookup (addr));
+  Entry getCacheEntry (Addr addr), return_by_pointer="yes" {
+    return static_cast (Entry, "pointer", cache.lookup (addr));
   }
 
-  bool missInTBE (int offset, int size, TBE tbe) {
-    if ( is_invalid (tbe) ) {
-      return true;
-    } else if ( tbe.pendingLd ) {
-      return false;
-    } else if ( tbe.numPendingSts > 0
-                && tbe.mask.firstBitSet (true, offset) < offset + size )
-    {
-      return false;
+  State getState (TBE tbe, Entry cache_entry, Addr addr) {
+    if (is_valid (cache_entry)) {
+      return cache_entry.state;
     } else {
-      return true;
+      return State:I;
     }
   }
 
-  bool hitInTBE (int offset, int size, TBE tbe) {
-    // make sure missInTBE -> false before calling this
-    return !tbe.pendingLd && tbe.mask.count (offset) >= size;
+  void setState (TBE tbe, Entry cache_entry, Addr addr, State state) {
+    if (is_valid (cache_entry)) {
+      cache_entry.state := state;
+    }
   }
 
   AccessPermission getAccessPermission (Addr addr) {
-    CacheEntry entry := getCacheEntry (addr);
+    Entry entry := getCacheEntry (addr);
     if (is_valid (entry)) {
       return SquireCache_State_to_permission (entry.state);
     } else {
       return AccessPermission:NotPresent;
+    }
+  }
+
+  void setAccessPermission (Entry cache_entry, Addr addr, State state) {
+    if (is_valid (cache_entry)) {
+      cache_entry.changePermission (SquireCache_State_to_permission (state));
     }
   }
 
@@ -123,10 +127,24 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
     error ( "Functional write unimpl for Squire Cache." );
   }
 
-  void setAccessPermission (CacheEntry cache_entry, Addr addr, State state) {
-    if (is_valid (cache_entry)) {
-      cache_entry.changePermission (SquireCache_State_to_permission (state));
+  bool missInTBE (int offset, int size, TBE tbe) {
+    if ( is_invalid (tbe) ) {
+      return true;
+    } else if ( tbe.pendingLd ) {
+      return false;
+    } else if ( tbe.numPendingSts > 0
+                && tbe.mask.firstBitSet (true, offset) < offset + size
+      )
+    {
+      return false;
+    } else {
+      return true;
     }
+  }
+
+  bool hitInTBE (int offset, int size, TBE tbe) {
+    // make sure missInTBE -> false before calling this
+    return !tbe.pendingLd && tbe.mask.count (offset) >= size;
   }
 
   // ========================================================================
@@ -140,23 +158,35 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
   // -- Response from Proxy --
   in_port ( response_in, ProxyMsg, responseFromProxy ) {
     if (response_in.isReady (clockEdge ())) {
-      peek (response_in, ProxyMsg) {
-        CacheEntry  entry := getCacheEntry (in_msg.addr);
-        TBE         tbe   := TBEs [in_msg.addr];
+      peek (response_in, ProxyMsg, block_on="addr") {
 
-        if (in_msg.type == ProxyMsgType:DATA) {
-          assert (tbe.pendingLd);
-          trigger (Event:LdAck, in_msg.addr, entry, tbe);
-        } else if (in_msg.type == ProxyMsgType:WT_ACK) {
-          assert (tbe.numPendingSts > 0);
-          trigger (Event:StAck, in_msg.addr, entry, tbe);
-        } else if (in_msg.type == ProxyMsgType:WT_INV) {
-          assert (tbe.numPendingSts > 0);
-          trigger (Event:StInv, in_msg.addr, entry, tbe);
-        } else {
-          assert (in_msg.type == ProxyMsgType:INV);
+        Entry entry := getCacheEntry (in_msg.addr);
+        TBE   tbe   := TBEs [in_msg.addr];
+
+        if (in_msg.type == ProxyMsgType:INV) {
           trigger (Event:Inv, in_msg.addr, entry, tbe);
+        } else {
+          assert (is_valid (tbe));
+
+          if (in_msg.type == ProxyMsgType:DATA) {
+            assert (tbe.pendingLd);
+            assert (is_invalid (cache_entry));
+            trigger (Event:LdAck, in_msg.addr, entry, tbe);
+          } else if (in_msg.type == ProxyMsgType:DATA_INV) {
+            assert (tbe.pendingLd);
+            assert (is_invalid (cache_entry));
+            trigger (Event:LdInv, in_msg.addr, entry, tbe);
+          } else if (in_msg.type == ProxyMsgType:WT_ACK) {
+            assert (tbe.numPendingSts > 0);
+            trigger (Event:StAck, in_msg.addr, entry, tbe);
+          // } else if (in_msg.type == ProxyMsgType:WT_INV) {
+          //   assert (tbe.numPendingSts > 0);
+          //   trigger (Event:StInv, in_msg.addr, entry, tbe);
+          } else {
+            error ("Invalid ProxyMsgType");
+          }
         }
+
       }
     }
   }
@@ -164,9 +194,9 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
   // -- Request from Sequencer --
   in_port ( request_in, RubyRequest, mandatoryQueue ) {
     if (request_in.isReady (clockEdge ())) {
-      peek (request_in, RubyRequest) {
-        CacheEntry  entry := getCacheEntry (in_msg.LineAddress);
-        TBE         tbe   := TBEs [in_msg.LineAddress];
+      peek (request_in, RubyRequest, block_on="LineAddress") {
+        Entry entry := getCacheEntry (in_msg.LineAddress);
+        TBE   tbe   := TBEs [in_msg.LineAddress];
 
         if (in_msg.Type == RubyRequestType:LD) {
           // check if the TBE has up-to-date write data
@@ -175,13 +205,14 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
             // handle it in the cache entry
             trigger (Event:Ld, in_msg.LineAddress, entry, tbe);
           } else if (hitInTBE ( offset, in_msg.size, tbe )) {
-            trigger (Event:LdStallTBE, in_msg.LineAddress, entry, tbe);
-          } else {
             trigger (Event:LdHitTBE, in_msg.LineAddress, entry, tbe);
+          } else {
+            trigger (Event:LdStallTBE, in_msg.LineAddress, entry, tbe);
           }
-        } else {
-          assert (in_msg.Type == RubyRequestType:ST);
+        } else if (in_msg.Type == RubyRequestType:ST) {
           trigger (Event:St, in_msg.LineAddress, entry, tbe);
+        } else {
+          error ("Invalid RubyRequestType");
         }
       }
     }
@@ -190,7 +221,7 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
   // ========================================================================
   // -- Actions --------------------------------------------------------------
   // ========================================================================
-  action ( at_allocTBE, "at", desc="Allocate TBE" ) {
+  action ( ta_TBEAlloc, "ta", desc="Allocate TBE" ) {
     if (is_invalid (tbe)) {
       check_allocate (TBEs);
       TBEs.allocate (address);
@@ -198,7 +229,30 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
     }
   }
 
-  action ( sr_sendLdReqToProxy, "sr", desc="Send load request to Proxy" ) {
+  action ( tl_TBEFillLd, "tl", desc="Fill pending load in TBE" ) {
+    assert (is_valid (tbe));
+    assert (tbe.pendingLd);
+
+    tbe.pendingLd := false;
+    if (tbe.numPendingSts == 0) {
+      TBEs.deallocate (address);
+      unset_tbe ();
+    }
+  }
+
+  action ( ts_TBEDecrSt, "ts", desc="Decrement number of pending stores in TBE") {
+    assert (is_valid (tbe));
+    assert (tbe.numPendingSts > 0);
+
+    if (tbe.numPendingSts == 1) {
+      TBEs.deallocate (address);
+      unset_tbe ();
+    } else {
+      tbe.numPendingSts := tbe.numPendingSts - 1;
+    }
+  }
+
+  action ( sr_sendLdReq, "sr", desc="Send load request to Proxy" ) {
     assert (is_valid (tbe) && !tbe.pendingLd);
     tbe.pendingLd := true;
 
@@ -211,29 +265,11 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
     }
   }
 
-  action ( pm_profMiss, "pm", desc="Profile cache miss" ) {
-    cache.profileDemandMiss ();
-  }
-
-  action ( dm_deqMandatory, "dm", desc="Dequeue from mandatory queue" ) {
-    request_in.dequeue (clockEdge ());
-  }
-
-  action ( lh_ldHit, "lh", desc="Load hit in cache" ) {
-    assert (is_valid (cache_entry));
-    cache.setMRU (cache_entry);
-    sequencer.readCallback (address, cache_entry.data);
-  }
-
-  action ( ph_profHit, "ph", desc="Profile cache hit" ) {
-    cache.profileDemandHit ();
-  }
-
   action ( wt_writeThru, "wt", desc="Write through to Proxy" ) {
     assert (is_valid (tbe));
 
     peek (request_in, RubyRequest) {
-      sequencer.writeCallback (address, in_msg.WTData);
+      sequencer.writeCallback (address, in_msg.WTData);     // immediate ACK
       tbe.numPendingSts := tbe.numPendingSts + 1;
       tbe.data.copyPartial (in_msg.WTData, in_msg.writeMask);
       tbe.mask.orMask (in_msg.writeMask);
@@ -248,6 +284,61 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
     }
   }
   
+  action ( pm_profMiss, "pm", desc="Profile cache miss" ) {
+    cache.profileDemandMiss ();
+  }
+
+  action ( ph_profHit, "ph", desc="Profile cache hit" ) {
+    cache.profileDemandHit ();
+  }
+
+  action ( lh_ldHit, "lh", desc="Load hit in cache" ) {
+    assert (is_valid (cache_entry));
+    cache.setMRU (cache_entry);
+    sequencer.readCallback (address, cache_entry.data);
+  }
+
+  action ( lf_ldFill, "lf", desc="Load miss filled" ) {
+    assert (is_valid (cache_entry));
+    cache.setMRU (cache_entry);
+    sequencer.readCallback (address, cache_entry.data, true);
+  }
+
+  action ( lt_ldHitTBE, "lt", desc="Load hit in TBE" ) {
+    assert (is_valid (tbe));
+    sequencer.readCallback (address, tbe.data);
+  }
+
+  action ( ls_ldFillStaled, "ls", desc="Load miss filled with stale data" ) {
+    peek ( response_in, ProxyMsg ) {
+      sequencer.readCallback (address, msg_in.data, true);
+    }
+  }
+
+  action ( dm_deqMandatory, "dm", desc="Dequeue from mandatory queue" ) {
+    request_in.dequeue (clockEdge ());
+  }
+
+  action ( dr_deqResponse, "dr", desc="Dequeue from response queue" ) {
+    Tick delay := response_in.dequeue (clockEdge ());
+    profileMsgDelay (0, ticksToCycles (delay));
+  }
+
+  action ( au_allocAndUpdateCacheEntry, "au", desc="Allocate and update cache entry" ) {
+    assert (is_invalid (cache_entry));
+
+    if ( !cache.cacheAvail (address) ) {
+      Addr victim := cache.cacheProbe (address);
+      cache.deallocate (victim);    // silent eviction
+    }
+
+    set_cache_entry (cache.allocate (address, new Entry));
+
+    peek (response_in, ProxyMsg) {
+      cache_entry.data := in_msg.data;
+    }
+  }
+
   action ( ue_updateCacheEntry, "ue", desc="Apply store to cache entry" ) {
     assert (is_valid (cache_entry));
 
@@ -257,68 +348,26 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
     }
   }
 
-  action ( lt_ldHitTBE, "lt", desc="Load hit in TBE" ) {
-    assert (is_valid (tbe));
-    sequencer.readCallback (address, tbe.data);
+  action ( wd_wakeUpDependents, "wd", desc="Wake up stalling queues" ) {
+    wakeUpAllBuffers (address);
   }
 
   action ( z_stallAndWaitMandatoryQueue, "z", desc="stall") {
     stall_and_wait ( request_in, address );
   }
 
-  action ( au_allocAndUpdateCacheEntry, "au", desc="Allocate and update cache entry" ) {
-    assert (is_invalid (cache_entry));
-
-    if ( !cache.cacheAvail (address) ) {
-      cache.deallocate (address);   // silent eviction
-    }
-
-    set_cache_entry (cache.allocate (address, new CacheEntry));
-
-    peek (response_in, ProxyMsg) {
-      cache_entry.data := in_msg.data;
-    }
-  }
-
-  action ( fl_fillLd, "fl", desc="Load satisfied by line fill" ) {
+  action ( de_deallocCacheEntry, "de", desc="Deallocate cache entry" ) {
     assert (is_valid (cache_entry));
-    assert (is_valid (tbe));
-
-    cache.setMRU (cache_entry);
-    sequencer.readCallback (address, cache_entry.data, true);
-
-    tbe.pendingLd := false;
-    if ( tbe.numPendingSts == 0 ) {
-      TBEs.deallocate (address);
-      unset_tbe ();
-    }
-  }
-
-  action ( dr_deqResponse, "dr", desc="Dequeue from response queue" ) {
-    Tick delay := response_in.dequeue (clockEdge ());
-    profileMsgDelay (0, ticksToCycles (delay));
-  }
-
-  action ( wd_wakeUpDependents, "wd", desc="Wake up stalling queues" ) {
-    wakeUpAllBuffers (address);
-  }
-
-  action ( fs_fillSt, "fs", desc="Store acked" ) {
-    assert (is_valid (tbe));
-    tbe.numPendingSts := tbe.numPendingSts - 1;
-
-    if ( tbe.numPendingSts == 0 ) {
-      TBEs.deallocate (address);
-      unset_tbe ();
-    }
+    cache.deallocate (address);
+    unset_cache_entry ();
   }
 
   // ========================================================================
   // -- Transitions ---------------------------------------------------------
   // ========================================================================
   transition (I, Ld) {
-    at_allocTBE;
-    sr_sendLdReqToProxy;
+    ta_TBEAlloc;
+    sr_sendLdReq;
     pm_profMiss;
     dm_deqMandatory;
   }
@@ -330,14 +379,14 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
   }
 
   transition (I, St) {
-    at_allocTBE;
+    ta_TBEAlloc;
     wt_writeThru;
     pm_profMiss;
     dm_deqMandatory;
   }
 
   transition (V, St) {
-    at_allocTBE;
+    ta_TBEAlloc;
     wt_writeThru;
     ue_updateCacheEntry;
     ph_profHit;
@@ -357,30 +406,31 @@ machine ( MachineType:SquireCache, "eFPGA-side Squire Cache" )
 
   transition (I, LdAck, V) {
     au_allocAndUpdateCacheEntry;
-    fl_fillLd;
+    lf_ldFill;
+    tl_TBEFillLd;
+    dr_deqResponse;
+    wd_wakeUpDependents;
+  }
+
+  transition (I, LdInv) {
+    ls_ldFillStaled;
+    tl_TBEFillLd;
     dr_deqResponse;
     wd_wakeUpDependents;
   }
 
   transition ({I, V}, StAck) {
-    fs_fillSt;
+    ts_TBEDecrSt;
     dr_deqResponse;
     wd_wakeUpDependents;
   }
 
-  transition (I, StInv) {
-    fs_fillSt;
+  transition (V, Inv, I) {
+    de_deallocCacheEntry;
     dr_deqResponse;
-    wd_wakeUpDependents;
   }
 
-  transition (V, StInv, I) {
-    fs_fillSt;
-    dr_deqResponse;
-    wd_wakeUpDependents;
-  }
-
-  transition ({V, I}, Inv, I) {
+  transition (I, Inv) {
     dr_deqResponse;
   }
 }

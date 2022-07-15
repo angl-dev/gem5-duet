@@ -7,9 +7,12 @@ enumeration ( SquireMsgType, desc="Message types from Squire to Proxy" )
 enumeration ( ProxyMsgType, desc="Message types from Proxy to Squire" )
 {
   DATA,     desc="Response to RD";
+  DATA_INV, desc="Response to RD, with invalidation";
   WT_ACK,   desc="Acknowledge to WT";
-  WT_INV,   desc="Acknowledge to WT, with invalidation";
   INV,      desc="Invalidation";
+
+  // Proxy cache is write-allocate & write-back, so no WT_INV
+  // WT_INV,   desc="Acknowledge to WT, with invalidation";
 }
 
 structure ( SquireMsg, desc="Message from Squire to Proxy", interface="Message" )
