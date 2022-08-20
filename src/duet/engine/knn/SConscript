@@ -1,13 +1,13 @@
 Import('*')
 
-SimObject('DuetBarnesQuad.py', sim_objects=[
-    'DuetBarnesQuadMemLane',
-    'DuetBarnesQuadComputeLane',
-    'DuetBarnesQuadEngine'
+SimObject('DuetKNN.py', sim_objects=[
+    'DuetKNNMemLane',
+    'DuetKNNComputeLane',
+    'DuetKNNEngine'
     ])
 
-Source('DuetBarnesQuadMemFunctor.cc')
-Source('DuetBarnesQuadMemLane.cc')
-Source('DuetBarnesQuadComputeFunctor.cc')
-Source('DuetBarnesQuadComputeLane.cc')
-Source('DuetBarnesQuadEngine.cc')
+Source('DuetKNNMemFunctor.cc')
+Source('DuetKNNMemLane.cc')
+Source('DuetKNNComputeFunctor.cc')
+Source('DuetKNNComputeLane.cc')
+Source('DuetKNNEngine.cc')
