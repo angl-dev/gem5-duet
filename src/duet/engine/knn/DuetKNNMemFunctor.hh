@@ -21,21 +21,14 @@ public:
         addr_t nodeptr;
         dequeue_data ( chan_arg, nodeptr );
 
-        // load pos[0], pos[1], and pos[2]
+        // load pos[0], pos[1], pos[2], and pos[3]
         enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 16 );
         enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 24 );
         enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 32 );
+        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 40 );
 
-        // load mass(p)
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 8 );
 
-        // load quad(p): xx, xy, xz, yy, yz, zz
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 104 );   // xx
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 112 );   // xy
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 120 );   // xz
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 136 );   // yy
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 144 );   // yz
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 168 );   // zz
+        
     }
 
 #ifndef __DUET_HLS
