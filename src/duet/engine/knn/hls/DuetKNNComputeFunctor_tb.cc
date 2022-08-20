@@ -1,10 +1,10 @@
 #define __DUET_HLS
 
 #include "stdio.h"
-#include "barnes_gravsub_quad/DuetBarnesQuadComputeFunctor.hh"
+#include "barnes_gravsub_quad/DuetKNNComputeFunctor.hh"
 
 int main ( int argc, char * argv[] ) {
-    DuetBarnesQuadComputeFunctor dut;
+    DuetKNNComputeFunctor dut;
 
     DuetFunctor::chan_data_t chan_input, chan_output;
     const DuetFunctor::Double pos0x ( 0.5f ),

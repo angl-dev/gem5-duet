@@ -1,11 +1,11 @@
-#include "duet/engine/barnes_gravsub_quad/DuetBarnesQuadComputeFunctor.hh"
+#include "duet/engine/barnes_gravsub_quad/DuetKNNComputeFunctor.hh"
 #include "duet/engine/DuetLane.hh"
 #include "duet/engine/DuetEngine.hh"
 
 namespace gem5 {
 namespace duet {
 
-void DuetBarnesQuadComputeFunctor::setup () {
+void DuetKNNComputeFunctor::setup () {
     chan_id_t id = { chan_id_t::RDATA, 0 };
     _chan_input = &get_chan_data ( id );
 
@@ -19,7 +19,7 @@ void DuetBarnesQuadComputeFunctor::setup () {
 
 }
 
-void DuetBarnesQuadComputeFunctor::run () {
+void DuetKNNComputeFunctor::run () {
     kernel ( *_chan_input, *_chan_output,
             _pos0x_ci, _pos0y_ci, _pos0z_ci, _epssq_ci );
 }

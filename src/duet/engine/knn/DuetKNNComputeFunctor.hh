@@ -13,7 +13,7 @@
     namespace duet {
 #endif /* #ifdef __DUET_HLS */
 
-class DuetBarnesQuadComputeFunctor : public DuetFunctor {
+class DuetKNNComputeFunctor : public DuetFunctor {
 public:
     #pragma hls_design top
     void kernel (
@@ -109,7 +109,7 @@ protected:
     void run () override final;
 
 public:
-    DuetBarnesQuadComputeFunctor ( DuetLane * lane, caller_id_t caller_id )
+    DuetKNNComputeFunctor ( DuetLane * lane, caller_id_t caller_id )
         : DuetFunctor ( lane, caller_id )
     {}
 
