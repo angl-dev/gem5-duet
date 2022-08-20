@@ -22,77 +22,33 @@ public:
             , const Double &    pos0x_ci
             , const Double &    pos0y_ci
             , const Double &    pos0z_ci
-            , const Double &    epssq_ci
+            , const Double &    pos0w_ci
             )
     {
         // take in constant arguments
-        const Double pos0[3] = { pos0x_ci, pos0y_ci, pos0z_ci };
-        Double drsq = epssq_ci;
+        const Double pos0[4] = { pos0x_ci, pos0y_ci, pos0z_ci, pos0z_wi };
 
         // pop loaded data
-        Double pos[3], mass, quad[3][3];
-
+        Double pos[4];
         dequeue_data ( chan_input, pos[0] );
         dequeue_data ( chan_input, pos[1] );
         dequeue_data ( chan_input, pos[2] );
-        dequeue_data ( chan_input, mass );
-        dequeue_data ( chan_input, quad[0][0] );
-        dequeue_data ( chan_input, quad[0][1] );
-        dequeue_data ( chan_input, quad[0][2] );
-        dequeue_data ( chan_input, quad[1][1] );
-        dequeue_data ( chan_input, quad[1][2] );
-        dequeue_data ( chan_input, quad[2][2] );
-
-        quad[1][0] = quad[0][1];
-        quad[2][0] = quad[0][2];
-        quad[2][1] = quad[1][2];
-
-        Double dr[3];
-        for ( int i = 0; i < 3; ++i ) {
+        dequeue_data ( chan_input, pos[3] );
+        
+        // KNN kernel
+        Double drsq;
+        Double dr[4];
+        for ( int i = 0; i < 4; ++i ) {
             dr[i] = pos[i] - pos0[i];
             drsq += dr[i] * dr[i];
         }
 
-        Double drabs = sqrt (drsq);
-        Double phii = mass / drabs;
-        Double mor3 = phii / drsq;
-        Double ai[3];
+        // Return Min value
 
-        for ( int i = 0; i < 3; ++i ) {
-            ai[i] = dr[i] * mor3;
-        }
+        // Some how get the min distance sofar
 
-        Double dr5inv ( 1.0f );
-        dr5inv /= drsq * drsq * drabs;
 
-        Double quaddr[3];
-        for ( int i = 0; i < 3; ++i ) {
-            quaddr[i] = (Double) (0.f);
-            for ( int j = 0; j < 3; ++j ) {
-                quaddr[i] += quad[i][j] * dr[j];
-            }
-        }
-
-        Double drquaddr ( 0.f );
-        for ( int i = 0; i < 3; ++i ) {
-            drquaddr += dr[i] * quaddr[i];
-        }
-
-        Double phiquad ( -0.5f );
-        phiquad *= dr5inv * drquaddr;
-        phii = phiquad - phii;
-
-        Double five ( 5.0f );
-        phiquad *= five / drsq;
-
-        for ( int i = 0; i < 3; ++i ) {
-            ai[i] -= dr[i] * phiquad + quaddr[i] * dr5inv;
-        }
-
-        enqueue_data ( chan_output, phii );
-        for ( int i = 0; i < 3; ++i ) {
-            enqueue_data ( chan_output, ai[i] );
-        }
+        enqueue_data ( chan_output, drsq );
     }
 
 #ifndef __DUET_HLS
@@ -103,7 +59,7 @@ private:
     Double          _pos0x_ci;
     Double          _pos0y_ci;
     Double          _pos0z_ci;
-    Double          _epssq_ci;
+    Double          _pos0w_ci;
 
 protected:
     void run () override final;
