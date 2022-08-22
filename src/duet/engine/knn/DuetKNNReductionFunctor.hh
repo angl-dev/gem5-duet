@@ -15,40 +15,27 @@ public:
     #pragma hls_design top
     void kernel (
             chan_data_t &       chan_input
-
-            , const Double &    phii_ci
-            , const Double &    accx_ci
-            , const Double &    accy_ci
-            , const Double &    accz_ci
-
-            ,       Double &    phii_co
-            ,       Double &    accx_co
-            ,       Double &    accy_co
-            ,       Double &    accz_co
+            , const Double &    result_ci
+            ,       Double &    result_co
             )
     {
-        Double ci[4] = { phii_ci, accx_ci, accy_ci, accz_ci };
-        Double tmp[4];
+        Double ci[1] = { result_ci };
+        Double tmp[1];
 
-        for ( int i = 0; i < 4; i++ ) {
-            dequeue_data ( chan_input, tmp[i] );
-            ci[i] += tmp[i];
-        }
+        dequeue_data ( chan_input, tmp[0] );
+        
+        // Make this min operator
+        ci[0] += tmp[0];
 
-        phii_co = ci[0];
-        accx_co = ci[1];
-        accy_co = ci[2];
-        accz_co = ci[3];
+        result_co = ci[0];
     }
 
 #ifndef __DUET_HLS
 private:
     chan_data_t   * _chan_input;
 
-    Double          _phii;
-    Double          _accx;
-    Double          _accy;
-    Double          _accz;
+    // Minimum distance computed so far
+    Double          _result;
 
 protected:
     void run () override final;

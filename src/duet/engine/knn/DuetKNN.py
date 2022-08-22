@@ -3,7 +3,7 @@ from m5.proxy import *
 from m5.objects import *
 from m5.objects.DuetLane import DuetSimpleLane, DuetPipelinedLane
 from m5.objects.DuetEngine import DuetEngine
-from m5.objects.DuetBarnes import DuetBarnesAccumulatorLane
+from m5.objects.DuetKNN import DuetKNNReductionLane
 
 class DuetKNNMemLane (DuetSimpleLane):
     type        = "DuetKNNMemLane"
@@ -35,5 +35,5 @@ class DuetKNNEngine (DuetEngine):
         self.lanes = [
                 DuetKNNMemLane (), 
                 DuetKNNComputeLane (),
-                DuetBarnesAccumulatorLane ()
+                DuetKNNReductionLane ()
                 ]
