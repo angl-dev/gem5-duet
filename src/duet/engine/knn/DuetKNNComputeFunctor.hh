@@ -26,7 +26,7 @@ public:
             )
     {
         // take in constant arguments
-        const Double pos0[4] = { pos0x_ci, pos0y_ci, pos0z_ci, pos0z_wi };
+        const Double pos0[4] = { pos0x_ci, pos0y_ci, pos0z_ci, pos0w_ci };
 
         // pop loaded data
         Double pos[4];
