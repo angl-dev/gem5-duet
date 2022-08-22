@@ -8,7 +8,7 @@ from m5.objects.DuetBarnes import DuetBarnesAccumulatorLane
 class DuetKNNMemLane (DuetSimpleLane):
     type        = "DuetKNNMemLane"
     cxx_class   = "gem5::duet::DuetKNNMemLane"
-    cxx_header  = "duet/engine/barnes_gravsub_quad/DuetKNNMemLane.hh"
+    cxx_header  = "duet/engine/knn/DuetKNNMemLane.hh"
 
     transition_from_stage   = [0,1,2,3,4,5,6,7,8,9]
     transition_to_stage     = [1,2,3,4,5,6,7,8,9,10]
@@ -17,7 +17,7 @@ class DuetKNNMemLane (DuetSimpleLane):
 class DuetKNNComputeLane (DuetPipelinedLane):
     type        = "DuetKNNComputeLane"
     cxx_class   = "gem5::duet::DuetKNNComputeLane"
-    cxx_header  = "duet/engine/barnes_gravsub_quad/DuetKNNComputeLane.hh"
+    cxx_header  = "duet/engine/knn/DuetKNNComputeLane.hh"
 
     transition_from_stage   = [0,1,2,3,4,5,6,7,8,  9,10,11]
     transition_to_stage     = [1,2,3,4,5,6,7,8,9, 10,11,11]
@@ -27,7 +27,7 @@ class DuetKNNComputeLane (DuetPipelinedLane):
 class DuetKNNEngine (DuetEngine):
     type        = "DuetKNNEngine"
     cxx_class   = "gem5::duet::DuetKNNEngine"
-    cxx_header  = "duet/engine/barnes_gravsub_quad/DuetKNNEngine.hh"
+    cxx_header  = "duet/engine/knn/DuetKNNEngine.hh"
 
     def __init__ (self, **kwargs):
         super().__init__(**kwargs)
