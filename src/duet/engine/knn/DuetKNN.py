@@ -27,7 +27,7 @@ class DuetKNNComputeLane (DuetPipelinedLane):
 class DuetKNNReductionLane (DuetSimpleLane):
     type        = "DuetKNNReductionLane"
     cxx_class   = "gem5::duet::DuetKNNReductionLane"
-    cxx_header  = "duet/engine/barnes_gravsub/DuetKNNReductionLane.hh"
+    cxx_header  = "duet/engine/knn/DuetKNNReductionLane.hh"
 
     transition_from_stage   = [0]
     transition_to_stage     = [0]
