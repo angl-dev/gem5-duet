@@ -43,12 +43,16 @@ public:
             drsq += dr[i] * dr[i];
         }
 
-        // Return Min value
 
-        // Some how get the min distance sofar
+        // Some how get the mininmum distance sofar. 
+        // probabaly this should be done in Accumulator lane 
+        
+        // And compare that value with `drsq` like
+        //  result = min(drsq, min_sofar)
 
 
-        enqueue_data ( chan_output, drsq );
+
+        // enqueue_data ( chan_output, result );
     }
 
 #ifndef __DUET_HLS
