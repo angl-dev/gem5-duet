@@ -24,6 +24,16 @@ class DuetKNNComputeLane (DuetPipelinedLane):
     transition_latency      = [1,1,1,1,1,1,1,1,1,141, 7, 3]
     interval                = 14
 
+class DuetKNNReductionLane (DuetSimpleLane):
+    type        = "DuetKNNReductionLane"
+    cxx_class   = "gem5::duet::DuetKNNReductionLane"
+    cxx_header  = "duet/engine/barnes_gravsub/DuetKNNReductionLane.hh"
+
+    transition_from_stage   = [0]
+    transition_to_stage     = [0]
+    transition_latency      = [1]
+    postrun_latency         = 9
+
 class DuetKNNEngine (DuetEngine):
     type        = "DuetKNNEngine"
     cxx_class   = "gem5::duet::DuetKNNEngine"
