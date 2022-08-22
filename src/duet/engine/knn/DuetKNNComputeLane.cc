@@ -1,5 +1,5 @@
-#include "duet/engine/barnes_gravsub_quad/DuetKNNComputeFunctor.hh"
-#include "duet/engine/barnes_gravsub_quad/DuetKNNComputeLane.hh"
+#include "duet/engine/knn/DuetKNNComputeFunctor.hh"
+#include "duet/engine/knn/DuetKNNComputeLane.hh"
 #include "duet/engine/DuetEngine.hh"
 
 namespace gem5 {

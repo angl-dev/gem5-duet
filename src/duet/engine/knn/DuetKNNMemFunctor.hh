@@ -1,5 +1,5 @@
-#ifndef __DUET_BARNES_QUAD_MEM_FUNCTOR_HH
-#define __DUET_BARNES_QUAD_MEM_FUNCTOR_HH
+#ifndef __DUET_KNN_MEM_FUNCTOR_HH
+#define __DUET_KNN_MEM_FUNCTOR_HH
 
 #ifdef __DUET_HLS
     #include "hls/functor.hh"
@@ -51,4 +51,4 @@ public:
     }   // namespace duet
 #endif /* #ifndef __DUET_HLS */
 
-#endif /* #ifndef __DUET_BARNES_QUAD_MEM_FUNCTOR_HH */
+#endif /* #ifndef __DUET_KNN_MEM_FUNCTOR_HH */

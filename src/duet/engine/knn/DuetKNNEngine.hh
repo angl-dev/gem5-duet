@@ -1,5 +1,5 @@
-#ifndef __DUET_BARNES_QUAD_ENGINE_HH
-#define __DUET_BARNES_QUAD_ENGINE_HH
+#ifndef __DUET_KNN_ENGINE_HH
+#define __DUET_KNN_ENGINE_HH
 
 #include "params/DuetKNNEngine.hh"
 #include "duet/engine/DuetEngine.hh"
@@ -38,4 +38,4 @@ protected:
 }   // namespace duet
 }   // namespace gem5
 
-#endif /* #ifndef __DUET_BARNES_QUAD_ENGINE_HH */
+#endif /* #ifndef __DUET_KNN_ENGINE_HH */

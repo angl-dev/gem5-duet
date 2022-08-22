@@ -1,4 +1,4 @@
-#include "duet/engine/barnes_gravsub_quad/DuetKNNEngine.hh"
+#include "duet/engine/knn/DuetKNNEngine.hh"
 
 namespace gem5 {
 namespace duet {

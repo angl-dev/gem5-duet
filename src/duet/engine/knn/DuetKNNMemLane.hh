@@ -1,5 +1,5 @@
-#ifndef __DUET_BARNES_QUAD_MEM_LANE_HH
-#define __DUET_BARNES_QUAD_MEM_LANE_HH
+#ifndef __DUET_KNN_MEM_LANE_HH
+#define __DUET_KNN_MEM_LANE_HH
 
 #include "duet/engine/DuetSimpleLane.hh"
 
@@ -20,4 +20,4 @@ public:
 }   // namespace duet
 }   // namespace gem5
 
-#endif /* #ifndef __DUET_BARNES_QUAD_MEM_LANE_HH */
+#endif /* #ifndef __DUET_KNN_MEM_LANE_HH */
