@@ -3,6 +3,7 @@ Import('*')
 SimObject('DuetKNN.py', sim_objects=[
     'DuetKNNMemLane',
     'DuetKNNComputeLane',
+    'DuetKNNReductionLane',
     'DuetKNNEngine'
     ])
 
