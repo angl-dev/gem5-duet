@@ -50,9 +50,7 @@ public:
         // And compare that value with `drsq` like
         //  result = min(drsq, min_sofar)
 
-
-
-        // enqueue_data ( chan_output, result );
+        enqueue_data ( chan_output, drsq );
     }
 
 #ifndef __DUET_HLS

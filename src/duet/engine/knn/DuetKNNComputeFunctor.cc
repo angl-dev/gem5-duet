@@ -1,4 +1,4 @@
-#include "duet/engine/barnes_gravsub_quad/DuetKNNComputeFunctor.hh"
+#include "duet/engine/knn/DuetKNNComputeFunctor.hh"
 #include "duet/engine/DuetLane.hh"
 #include "duet/engine/DuetEngine.hh"
 

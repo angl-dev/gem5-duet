@@ -26,8 +26,6 @@ public:
         enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 24 );
         enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 32 );
         enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 40 );
-
-
         
     }
 

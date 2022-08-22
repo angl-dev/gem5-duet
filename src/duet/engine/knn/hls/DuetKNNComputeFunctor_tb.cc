@@ -1,7 +1,7 @@
 #define __DUET_HLS
 
 #include "stdio.h"
-#include "barnes_gravsub_quad/DuetKNNComputeFunctor.hh"
+#include "knn/DuetKNNComputeFunctor.hh"
 
 int main ( int argc, char * argv[] ) {
     DuetKNNComputeFunctor dut;

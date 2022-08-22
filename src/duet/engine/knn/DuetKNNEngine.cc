@@ -61,7 +61,11 @@ bool DuetKNNEngine::handle_softreg_write (
         set_constant ( caller_id, "pos0z", value );
         return true;
 
-    default:    // cnt, phii, accx, accy, accz
+    case 4:     // pos0w
+        set_constant ( caller_id, "pos0z", value );
+        return true;
+
+    default:    // cnt, result
         return true;
     }
 }
@@ -102,31 +106,18 @@ bool DuetKNNEngine::handle_softreg_read (
         value = get_constant <uint64_t> ( caller_id, "pos0z" );
         return true;
 
-    case 4:     // cnt
+    case 4:     // pos0w
+        value = get_constant <uint64_t> ( caller_id, "pos0w" );
+        return true;
+
+    case 5:     // cnt
         value = get_constant <uint64_t> ( caller_id, "cnt" );
         return true;
 
-    case 5:     // phii
-        value = get_constant <uint64_t> ( caller_id, "phii" );
-        set_constant ( caller_id, "phii", double (0.f) );
-        set_constant <uint64_t> ( caller_id, "cnt", 0 );
-        return true;
-
-    case 6:     // accx
-        value = get_constant <uint64_t> ( caller_id, "accx" );
-        set_constant ( caller_id, "accx", double (0.f) );
-        set_constant <uint64_t> ( caller_id, "cnt", 0 );
-        return true;
-
-    case 7:     // accy
-        value = get_constant <uint64_t> ( caller_id, "accy" );
-        set_constant ( caller_id, "accy", double (0.f) );
-        set_constant <uint64_t> ( caller_id, "cnt", 0 );
-        return true;
-
-    case 8:     // accz
-        value = get_constant <uint64_t> ( caller_id, "accz" );
-        set_constant ( caller_id, "accz", double (0.f) );
+    case 6:     // result
+        // Yanwen: destructive read
+        value = get_constant <uint64_t> ( caller_id, "result" );
+        set_constant ( caller_id, "result", double (0.f) );
         set_constant <uint64_t> ( caller_id, "cnt", 0 );
         return true;
 
@@ -148,10 +139,7 @@ void DuetKNNEngine::init () {
             ++caller_id )
     {
         set_constant <uint64_t> ( caller_id, "cnt", 0 );
-        set_constant ( caller_id, "phii", double (0.f) );
-        set_constant ( caller_id, "accx", double (0.f) );
-        set_constant ( caller_id, "accy", double (0.f) );
-        set_constant ( caller_id, "accz", double (0.f) );
+        set_constant ( caller_id, "result", double (0.f) );
     }
 
     set_constant ( "epssq", double (0.f) );
