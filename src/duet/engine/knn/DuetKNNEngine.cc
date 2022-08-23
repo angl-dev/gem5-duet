@@ -62,7 +62,7 @@ bool DuetKNNEngine::handle_softreg_write (
         return true;
 
     case 4:     // pos0w
-        set_constant ( caller_id, "pos0z", value );
+        set_constant ( caller_id, "pos0w", value );
         return true;
 
     default:    // cnt, result
