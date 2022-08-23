@@ -115,7 +115,7 @@ bool DuetKNNEngine::handle_softreg_read (
         return true;
 
     case 6:     // result
-        // Yanwen: destructive read
+        // Yanwen: destructive read, ask Ang
         value = get_constant <uint64_t> ( caller_id, "result" );
         set_constant ( caller_id, "result", double (99999.f) );
         set_constant <uint64_t> ( caller_id, "cnt", 0 );
@@ -139,7 +139,7 @@ void DuetKNNEngine::init () {
             ++caller_id )
     {
         set_constant <uint64_t> ( caller_id, "cnt", 0 );
-        set_constant ( caller_id, "result", double (0.f) );
+        set_constant ( caller_id, "result", double (99999.f) );
     }
 
     set_constant ( "epssq", double (0.f) );
