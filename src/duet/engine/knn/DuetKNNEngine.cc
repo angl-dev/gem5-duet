@@ -117,7 +117,7 @@ bool DuetKNNEngine::handle_softreg_read (
     case 6:     // result
         // Yanwen: destructive read
         value = get_constant <uint64_t> ( caller_id, "result" );
-        set_constant ( caller_id, "result", double (0.f) );
+        set_constant ( caller_id, "result", double (99999.f) );
         set_constant <uint64_t> ( caller_id, "cnt", 0 );
         return true;
 
