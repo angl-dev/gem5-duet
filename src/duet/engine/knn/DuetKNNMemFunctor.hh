@@ -21,12 +21,12 @@ public:
         addr_t nodeptr;
         dequeue_data ( chan_arg, nodeptr );
 
+        // TODO: Ask Ang
         // load pos[0], pos[1], pos[2], and pos[3]
+        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 0 );
+        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 8 );
         enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 16 );
         enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 24 );
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 32 );
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 40 );
-        
     }
 
 #ifndef __DUET_HLS
