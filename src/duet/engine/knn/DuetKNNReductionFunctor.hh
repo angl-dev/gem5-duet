@@ -22,10 +22,16 @@ public:
         Double ci[1] = { result_ci };
         Double tmp[1];
 
+        // Got distance computed from ComputeLane
         dequeue_data ( chan_input, tmp[0] );
         
-        // Make this min operator
-        ci[0] += tmp[0];
+        // Make this min operator, anything special?
+        // ci[0] = ci[0] < tmp[0] ? ci[0] : tmp[0] ;
+        
+        ci[0] = min(ci[0], tmp[0]);
+
+
+        // ci[0] += tmp[0];
 
         result_co = ci[0];
     }
