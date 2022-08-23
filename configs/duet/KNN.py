@@ -25,8 +25,11 @@ for engine in system.engines:
 
 # ------ Yanwen addition -----
 
-for i in range(np):
-    system.cpu[i].workload[:].release = "99.99.99"
+# for i in range(np):
+#     system.cpu[i].workload[:].release = "99.99.99"
+
+for cpu in system.cpus:
+    cpu.workload[:].release = "99.99.99"
         
 
 # ----------------------------
