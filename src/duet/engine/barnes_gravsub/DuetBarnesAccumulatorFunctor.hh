@@ -14,25 +14,29 @@ class DuetBarnesAccumulatorFunctor : public DuetFunctor {
 public:
     #pragma hls_design top
     void kernel (
-            chan_data_t &       chan_input
+            ac_channel <Block<32>> &    chan_input
 
-            , const Double &    phii_ci
-            , const Double &    accx_ci
-            , const Double &    accy_ci
-            , const Double &    accz_ci
+            , const Double &            phii_ci
+            , const Double &            accx_ci
+            , const Double &            accy_ci
+            , const Double &            accz_ci
 
-            ,       Double &    phii_co
-            ,       Double &    accx_co
-            ,       Double &    accy_co
-            ,       Double &    accz_co
+            ,       Double &            phii_co
+            ,       Double &            accx_co
+            ,       Double &            accy_co
+            ,       Double &            accz_co
             )
     {
         Double ci[4] = { phii_ci, accx_ci, accy_ci, accz_ci };
-        Double tmp[4];
 
+        Block<32> tmp;
+        dequeue_data ( chan_input, tmp );
+
+        #pragma unroll yes
         for ( int i = 0; i < 4; i++ ) {
-            dequeue_data ( chan_input, tmp[i] );
-            ci[i] += tmp[i];
+            Double inc;
+            unpack ( tmp, i, inc );
+            ci[i] += inc;
         }
 
         phii_co = ci[0];

@@ -17,12 +17,12 @@ class DuetBarnesQuadComputeFunctor : public DuetFunctor {
 public:
     #pragma hls_design top
     void kernel (
-            chan_data_t &       chan_input
-            , chan_data_t &     chan_output
-            , const Double &    pos0x_ci
-            , const Double &    pos0y_ci
-            , const Double &    pos0z_ci
-            , const Double &    epssq_ci
+            ac_channel <Block<64>> &    chan_input
+            , ac_channel <Block<32>> &  chan_output
+            , const Double &            pos0x_ci
+            , const Double &            pos0y_ci
+            , const Double &            pos0z_ci
+            , const Double &            epssq_ci
             )
     {
         // take in constant arguments
@@ -32,22 +32,32 @@ public:
         // pop loaded data
         Double pos[3], mass, quad[3][3];
 
-        dequeue_data ( chan_input, pos[0] );
-        dequeue_data ( chan_input, pos[1] );
-        dequeue_data ( chan_input, pos[2] );
-        dequeue_data ( chan_input, mass );
-        dequeue_data ( chan_input, quad[0][0] );
-        dequeue_data ( chan_input, quad[0][1] );
-        dequeue_data ( chan_input, quad[0][2] );
-        dequeue_data ( chan_input, quad[1][1] );
-        dequeue_data ( chan_input, quad[1][2] );
-        dequeue_data ( chan_input, quad[2][2] );
+        {
+            Block<64> tmp;
+
+            dequeue_data ( chan_input, tmp );
+            unpack ( tmp, 1, mass );
+            unpack ( tmp, 2, pos[0] );
+            unpack ( tmp, 3, pos[1] );
+            unpack ( tmp, 4, pos[2] );
+
+            dequeue_data ( chan_input, tmp );
+            unpack ( tmp, 5, quad[0][0] );
+            unpack ( tmp, 6, quad[0][1] );
+            unpack ( tmp, 7, quad[0][2] );
+
+            dequeue_data ( chan_input, tmp );
+            unpack ( tmp, 1, quad[1][1] );
+            unpack ( tmp, 2, quad[1][2] );
+            unpack ( tmp, 5, quad[2][2] );
+        }
 
         quad[1][0] = quad[0][1];
         quad[2][0] = quad[0][2];
         quad[2][1] = quad[1][2];
 
         Double dr[3];
+        #pragma unroll yes
         for ( int i = 0; i < 3; ++i ) {
             dr[i] = pos[i] - pos0[i];
             drsq += dr[i] * dr[i];
@@ -58,6 +68,7 @@ public:
         Double mor3 = phii / drsq;
         Double ai[3];
 
+        #pragma unroll yes
         for ( int i = 0; i < 3; ++i ) {
             ai[i] = dr[i] * mor3;
         }
@@ -66,14 +77,17 @@ public:
         dr5inv /= drsq * drsq * drabs;
 
         Double quaddr[3];
+        #pragma unroll yes
         for ( int i = 0; i < 3; ++i ) {
             quaddr[i] = (Double) (0.f);
+            #pragma unroll yes
             for ( int j = 0; j < 3; ++j ) {
                 quaddr[i] += quad[i][j] * dr[j];
             }
         }
 
         Double drquaddr ( 0.f );
+        #pragma unroll yes
         for ( int i = 0; i < 3; ++i ) {
             drquaddr += dr[i] * quaddr[i];
         }
@@ -85,13 +99,18 @@ public:
         Double five ( 5.0f );
         phiquad *= five / drsq;
 
+        #pragma unroll yes
         for ( int i = 0; i < 3; ++i ) {
             ai[i] -= dr[i] * phiquad + quaddr[i] * dr5inv;
         }
 
-        enqueue_data ( chan_output, phii );
-        for ( int i = 0; i < 3; ++i ) {
-            enqueue_data ( chan_output, ai[i] );
+        {
+            Block<32> tmp;
+            pack ( tmp, 0, phii );
+            pack ( tmp, 1, ai[0] );
+            pack ( tmp, 2, ai[1] );
+            pack ( tmp, 3, ai[2] );
+            enqueue_data ( chan_output, tmp );
         }
     }
 

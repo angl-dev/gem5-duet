@@ -37,6 +37,7 @@ public:
 // == HLS-specific types =====================================================
 // ===========================================================================
 public:
+    // Native C/C++
     typedef ac_int <8, false>   Bool;
     typedef ac_int <8, false>   U8;
     typedef ac_int <8, true>    S8;
@@ -50,9 +51,13 @@ public:
     typedef ac_int <64, true>   Int;
     typedef ac_ieee_float32     Float;
     typedef ac_ieee_float64     Double;
+
+    // Duet-extensions
     typedef ac_int <48, false>  addr_t;
     typedef ac_channel <U64>    chan_req_t;
-    typedef ac_channel <U64>    chan_data_t;
+
+    template <unsigned int BYTES>
+    using Block = ac_int <(BYTES << 3), false>;
 
 // ===========================================================================
 // == API for subclasses =====================================================
@@ -63,7 +68,7 @@ protected:
      *  Enqueue a memory request to the specified channel
      * -------------------------------------------------------------------- */
     void enqueue_req (
-            chan_req_t &        chan
+            chan_req_t        & chan
             , mem_req_type_t    type
             , size_t            size
             , addr_t            addr
@@ -74,49 +79,171 @@ protected:
      * enqueue_data:
      *  Enqueue a data element to the specified channel
      * -------------------------------------------------------------------- */
-    // generic implementation for ac_int family
-    template <typename T>
+    // template for ac_int family
+    template <typename T, int W, bool S>
     void enqueue_data (
-            chan_data_t &       chan
-            , const T &         data
+            ac_channel<T>         & chan
+            , const ac_int<W, S>  & data
             )
     {
-        U64 packed ( data );
+        assert (T::width >= W);
+        assert (T::width % W == 0);
+
+        T packed;
+        #pragma unroll yes
+        for (int i = 0; i < T::width; i+=W) {
+            packed.template set_slc<W> (i, data);
+        }
+
         chan.write ( packed );
+    }
+
+    // overload template for float32
+    template <typename T>
+    void enqueue_data (
+            ac_channel<T>         & chan
+            , Float               & data
+            )
+    {
+        U32 tmp = data.data ();
+        this->template enqueue_data <T, 32, false> (chan, tmp);
+    }
+
+    // overload template for float64
+    template <typename T>
+    void enqueue_data (
+            ac_channel<T>         & chan
+            , Double              & data
+            )
+    {
+        U64 tmp = data.data ();
+        this->template enqueue_data <T, 64, false> (chan, tmp);
     }
 
     /* -----------------------------------------------------------------------
      * dequeue_data:
      *  Dequeue a data element from the specified channel
      * -------------------------------------------------------------------- */
-    // generic implementation for ac_int family
-    template <typename T>
+    // template for ac_int family
+    template <typename T, int W, bool S>
     void dequeue_data (
-            chan_data_t &       chan
-            , T &               data
+            ac_channel<T>     & chan
+            , ac_int<W, S>    & data
             )
     {
-        U64 packed = chan.read ();
-        data = packed.template slc <T::width> (0);
+        assert (T::width >= W);
+        assert (T::width % W == 0);
+
+        T packed = chan.read ();
+        data = packed.template slc <W> (0);
+    }
+
+    // overload template for float32
+    template <typename T>
+    void dequeue_data (
+            ac_channel<T>     & chan
+            , Float           & data
+            )
+    {
+        U32 tmp;
+        this->template dequeue_data <T, 32, false> (chan, tmp);
+        data.set_data ( tmp );
+    }
+
+    // overload template for float64
+    template <typename T>
+    void dequeue_data (
+            ac_channel<T>     & chan
+            , Double          & data
+            )
+    {
+        U64 tmp;
+        this->template dequeue_data <T, 64, false> (chan, tmp);
+        data.set_data ( tmp );
     }
 
     /* -----------------------------------------------------------------------
      * dequeue_token:
      *  Dequeue a store ACK from the specified channel
      * -------------------------------------------------------------------- */
+    template <typename T>
     void dequeue_token (
-            chan_data_t &       chan
+            ac_channel<T>     & chan
             )
     { chan.read (); }
 
-    template <typename T_data, typename T_packed>
+    /* -----------------------------------------------------------------------
+     * unpack:
+     *  Extract sub-word data from a long word
+     * -------------------------------------------------------------------- */
+    // template for ac_int family
+    template <typename T, int W, bool S>
     void unpack (
-            const T_packed    & packed
+            const T           & packed
             , int               offset
-            , T_data          & data
+            , ac_int<W, S>    & data
             )
     {
-        data = packed.template slc <T_data::width> ( T_data::width * offset );
+        data = packed.template slc <W> ( W * offset );
+    }
+
+    // overload template for float32
+    template <typename T>
+    void unpack (
+            const T           & packed
+            , int               offset
+            , Float           & data
+            )
+    {
+        data.set_data ( packed.template slc <32> ( 32 * offset ) );
+    }
+
+    // overload template for float64
+    template <typename T>
+    void unpack (
+            const T           & packed
+            , int               offset
+            , Double          & data
+            )
+    {
+        data.set_data ( packed.template slc <64> ( 64 * offset ) );
+    }
+
+    /* -----------------------------------------------------------------------
+     * pack:
+     *  Fill sub-word data into a long word
+     * -------------------------------------------------------------------- */
+    // template for ac_int family
+    template <typename T, int W, bool S>
+    void pack (
+            T                     & packed
+            , int                   offset
+            , const ac_int<W, S>  & data
+            )
+    {
+        packed.template set_slc <W> ( W * offset, data );
+    }
+
+    // overload template for float32
+    template <typename T>
+    void pack (
+            T                 & packed
+            , int               offset
+            , const Float     & data
+            )
+    {
+        packed.template set_slc <32> ( 32 * offset, data.data_ac_int () );
+    }
+
+    // overload template for float64
+    template <typename T>
+    void pack (
+            T                 & packed
+            , int               offset
+            , const Double    & data
+            )
+    {
+        packed.template set_slc <64> ( 64 * offset, data.data_ac_int () );
     }
 
 // ===========================================================================
@@ -142,55 +269,3 @@ public:
         return req;
     }
 };
-
-// specialization for float (float32)
-template <>
-void DuetFunctor::enqueue_data <DuetFunctor::Float> (
-        DuetFunctor::chan_data_t &      chan
-        , const DuetFunctor::Float &    data
-        )
-{
-    U64 packed;
-    packed.template set_slc <32> ( 0, data.data_ac_int() );
-    chan.write ( packed );
-}
-
-// specialization for double (float64)
-template <>
-void DuetFunctor::enqueue_data <DuetFunctor::Double> (
-        DuetFunctor::chan_data_t &      chan
-        , const DuetFunctor::Double &   data
-        )
-{
-    chan.write ( data.data_ac_int () );
-}
-
-// specialization for float (float32)
-template <>
-void DuetFunctor::dequeue_data <DuetFunctor::Float> (
-        DuetFunctor::chan_data_t &      chan
-        , DuetFunctor::Float &          data
-        )
-{
-    U64 packed = chan.read ();
-    data.set_data ( packed.template slc <32> (0) );
-}
-
-template <>
-void DuetFunctor::unpack <DuetFunctor::Float, DuetFunctor::U64> (
-        const DuetFunctor::U64    & packed
-        , int                       offset
-        , DuetFunctor::Float      & data
-        )
-{ data.set_data ( this->template unpack <U32> ( packed, offset ) ); }
-
-// specialization for double (float64)
-template <>
-void DuetFunctor::dequeue_data <DuetFunctor::Double> (
-        DuetFunctor::chan_data_t &      chan
-        , DuetFunctor::Double &         data
-        )
-{
-    U64 packed = chan.read ();
-    data.set_data ( packed );
-}

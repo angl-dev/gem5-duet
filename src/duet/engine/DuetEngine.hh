@@ -301,6 +301,7 @@ public:
     Port & getPort ( const std::string & if_name
             , PortID idx = InvalidPortID ) override;
     virtual void init () override;
+    unsigned int cacheLineSize () const;
 };
 
 // specialization

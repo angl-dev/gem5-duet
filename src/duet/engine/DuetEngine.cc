@@ -595,6 +595,10 @@ void DuetEngine::init () {
     _started.resize ( get_num_callers () );
 }
 
+unsigned int DuetEngine::cacheLineSize () const {
+    return _system->cacheLineSize ();
+}
+
 template <>
 uint64_t DuetEngine::get_constant <uint64_t> (
         DuetFunctor::caller_id_t    caller_id

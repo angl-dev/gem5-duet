@@ -14,28 +14,23 @@ class DuetBarnesQuadMemFunctor : public DuetFunctor {
 public:
     #pragma hls_design top
     void kernel (
-            chan_data_t &   chan_arg
-            , chan_req_t &  chan_req
+            ac_channel <U64> &  chan_arg
+            , chan_req_t &      chan_req
             )
     {
         addr_t nodeptr;
         dequeue_data ( chan_arg, nodeptr );
 
-        // load pos[0], pos[1], and pos[2]
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 16 );
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 24 );
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 32 );
+        // assume >= 64B cache line size:
 
-        // load mass(p)
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 8 );
+        // load mass(p) = +8, pos[0] = +16, pos[1] = +24, pos[2] = +32
+        enqueue_req ( chan_req, REQTYPE_LD, 64, nodeptr );
 
-        // load quad(p): xx, xy, xz, yy, yz, zz
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 104 );   // xx
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 112 );   // xy
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 120 );   // xz
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 136 );   // yy
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 144 );   // yz
-        enqueue_req ( chan_req, REQTYPE_LD, sizeof (double), nodeptr + 168 );   // zz
+        // load quad(p): xx = +104, xy = +112, xz = +120
+        enqueue_req ( chan_req, REQTYPE_LD, 64, nodeptr + 64 );
+
+        // load quad(p): yy = +136, yz = +144, zz = +168
+        enqueue_req ( chan_req, REQTYPE_LD, 64, nodeptr + 128 );
     }
 
 #ifndef __DUET_HLS

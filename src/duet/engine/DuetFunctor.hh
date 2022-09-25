@@ -49,6 +49,7 @@ public:
 // == GEM5-specific types ====================================================
 // ===========================================================================
 protected:
+    // Native C/C++
     typedef bool                Bool;
     typedef uint8_t             U8;
     typedef int8_t              S8;
@@ -62,7 +63,12 @@ protected:
     typedef int                 Int;
     typedef float               Float;
     typedef double              Double;
+
+    // Duet-extensions
     typedef uintptr_t           addr_t;
+
+    template <unsigned int BYTES>
+    struct Block { uint8_t _[BYTES]; };
 
 public:
     typedef std::shared_ptr<uint8_t[]>  raw_data_t;
@@ -77,6 +83,9 @@ public:
 
     typedef std::list <mem_req_t>       chan_req_t;
     typedef std::list <raw_data_t>      chan_data_t;
+
+    template <typename T>
+    using ac_channel = chan_data_t;
 
     typedef struct _chan_id_t {
         enum : uint8_t {
@@ -115,20 +124,7 @@ protected:
             , mem_req_type_t    type
             , size_t            size
             , addr_t            addr
-            )
-    {
-        // update state
-        _stage              = stage;
-        _blocking_chan_id   = _id_by_chan [
-            reinterpret_cast <void *> (&chan) ];
-
-        // transfer control back to the main thread
-        _yield ();
-
-        // resume execution
-        mem_req_t req = { type, size, addr };
-        chan.push_back ( req );
-    }
+            );
 
     /* -----------------------------------------------------------------------
      * enqueue_data:
@@ -208,11 +204,25 @@ protected:
             , T_data          & data
             )
     {
-        static T_packed const mask  = ( (sizeof(T_data)) << 3 ) - 1;
-               T_packed const shift = ( (sizeof(T_data)) * offset ) << 3;
+        uint8_t const * ptr_packed = reinterpret_cast <uint8_t const *> (&packed);
+        uint8_t       * ptr_data   = reinterpret_cast <uint8_t *> (&data);
 
-        T_packed shifted = ( packed >> shift ) & mask;
-        data = *( reinterpret_cast <const T_data *> ( &shifted ) );
+        size_t bofs = offset * sizeof(T_data);
+        memcpy ( ptr_data, ptr_packed + bofs, sizeof(T_data) );
+    }
+
+    template <typename T_data, typename T_packed>
+    void pack (
+            T_packed          & packed
+            , int               offset
+            , const T_data    & data
+            )
+    {
+        uint8_t       * ptr_packed = reinterpret_cast <uint8_t *> (&packed);
+        uint8_t const * ptr_data   = reinterpret_cast <uint8_t const *> (&data);
+
+        size_t bofs = offset * sizeof(T_data);
+        memcpy ( ptr_packed + bofs, ptr_data, sizeof(T_data) );
     }
 
 // ===========================================================================

@@ -41,6 +41,31 @@ DuetFunctor::DuetFunctor ( DuetLane * lane, caller_id_t caller_id )
     std::swap ( t, _thread );
 }
 
+void DuetFunctor::_enqueue_req (
+        DuetFunctor::stage_t            stage
+        , DuetFunctor::chan_req_t &     chan
+        , DuetFunctor::mem_req_type_t   type
+        , size_t                        size
+        , DuetFunctor::addr_t           addr
+        )
+{
+    // sanity check
+    panic_if ( size > lane->get_engine()->cacheLineSize(),
+            "Request size larger than cache line size!" );
+
+    // update state
+    _stage              = stage;
+    _blocking_chan_id   = _id_by_chan [
+        reinterpret_cast <void *> (&chan) ];
+
+    // transfer control back to the main thread
+    _yield ();
+
+    // resume execution
+    mem_req_t req = { type, size, addr };
+    chan.push_back ( req );
+}
+
 bool DuetFunctor::advance () {
     // transfer control to the functor thread
     _yield ();

@@ -89,6 +89,22 @@ def add_common_arguments ( parser ):
     parser.add_argument ('--async-fifo-stages',     dest='afstage', type=int, default=4)
     parser.add_argument ('--async-fifo-capacity',   dest='afcap',   type=int, default=64)
 
+    # duet's soft cache config (default same as L1D)
+    parser.add_argument ("--ds-size",           dest="ds_size",     type=str, default=None)
+    parser.add_argument ("--ds-assoc",          dest="ds_assoc",    type=int, default=None)
+    parser.add_argument ("--ds-tag-latency",    dest="ds_tlat",     type=int, default=None)
+    parser.add_argument ("--ds-data-latency",   dest="ds_dlat",     type=int, default=None)
+    parser.add_argument ("--ds-resp-latency",   dest="ds_rlat",     type=int, default=None)
+    parser.add_argument ("--ds-mshrs",          dest="ds_mshrs",    type=int, default=None)
+
+    # duet's hard cache config (default same as L2)
+    parser.add_argument ("--dh-size",           dest="dh_size",     type=str, default=None)
+    parser.add_argument ("--dh-assoc",          dest="dh_assoc",    type=int, default=None)
+    parser.add_argument ("--dh-tag-latency",    dest="dh_tlat",     type=int, default=None)
+    parser.add_argument ("--dh-data-latency",   dest="dh_dlat",     type=int, default=None)
+    parser.add_argument ("--dh-resp-latency",   dest="dh_rlat",     type=int, default=None)
+    parser.add_argument ("--dh-mshrs",          dest="dh_mshrs",    type=int, default=None)
+
 # ============================================================================
 # == Build Base System based on Arguments ====================================
 # ============================================================================
@@ -237,6 +253,12 @@ def build_system_and_process ( args ):
 # ============================================================================
 # == Connect Engine into System ==============================================
 # ============================================================================
+def uno (*args):
+    for arg in args:
+        if arg is not None:
+            return arg
+    return None
+
 def integrate ( args, system, process, engine ):
     engine.process = process
     engine.clk_domain = SrcClockDomain (
@@ -253,12 +275,12 @@ def integrate ( args, system, process, engine ):
     # create soft cache if specified
     if args.duetcache in ["soft", "both"]:
         engine.softcache = Cache (
-                size                = args.l1d_size,
-                assoc               = args.l1d_assoc,
-                tag_latency         = args.l1d_tlat,
-                data_latency        = args.l1d_dlat,
-                response_latency    = args.l1d_rlat,
-                mshrs               = args.l1d_mshrs,
+                size                = uno(args.ds_size, args.l1d_size),
+                assoc               = uno(args.ds_assoc, args.l1d_assoc),
+                tag_latency         = uno(args.ds_tlat, args.l1d_tlat),
+                data_latency        = uno(args.ds_dlat, args.l1d_dlat),
+                response_latency    = uno(args.ds_rlat, args.l1d_rlat),
+                mshrs               = uno(args.ds_mshrs, args.l1d_mshrs),
                 tgts_per_mshr       = 8,
                 addr_ranges         = [ AddrRange ( args.memsize ) ],
                 )
@@ -268,12 +290,12 @@ def integrate ( args, system, process, engine ):
     if args.duetcache in ["hard", "both"]:
         engine.hardcache = Cache (
                 clk_domain          = system.clk_domain,
-                size                = args.l2_size,
-                assoc               = args.l2_assoc,
-                tag_latency         = args.l2_tlat,
-                data_latency        = args.l2_dlat,
-                response_latency    = args.l2_rlat,
-                mshrs               = args.l2_mshrs,
+                size                = uno(args.dh_size, args.l2_size),
+                assoc               = uno(args.dh_assoc, args.l2_assoc),
+                tag_latency         = uno(args.dh_tlat, args.l2_tlat),
+                data_latency        = uno(args.dh_dlat, args.l2_dlat),
+                response_latency    = uno(args.dh_rlat, args.l2_rlat),
+                mshrs               = uno(args.dh_mshrs, args.l2_mshrs),
                 tgts_per_mshr       = 8,
                 addr_ranges         = [ AddrRange ( args.memsize ) ],
                 )

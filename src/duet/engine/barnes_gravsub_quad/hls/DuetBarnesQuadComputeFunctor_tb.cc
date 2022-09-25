@@ -6,7 +6,9 @@
 int main ( int argc, char * argv[] ) {
     DuetBarnesQuadComputeFunctor dut;
 
-    DuetFunctor::chan_data_t chan_input, chan_output;
+    ac_channel <DuetFunctor::Block<64>> chan_input;
+    ac_channel <DuetFunctor::Block<32>> chan_output;
+    
     const DuetFunctor::Double pos0x ( 0.5f ),
                               pos0y ( 0.5f ),
                               pos0z ( 0.5f ),
@@ -22,6 +24,12 @@ int main ( int argc, char * argv[] ) {
                               yz    ( 0.5f ),
                               zz    ( 0.5f );
 
+    DuetFunctor::Block<64> tmp;
+    chan_input.write ( tmp );
+    chan_input.write ( tmp );
+    chan_input.write ( tmp );
+    
+    /*
     chan_input.write ( posx.data_ac_int () );
     chan_input.write ( posy.data_ac_int () );
     chan_input.write ( posz.data_ac_int () );
@@ -32,15 +40,18 @@ int main ( int argc, char * argv[] ) {
     chan_input.write ( yy  .data_ac_int () );
     chan_input.write ( yz  .data_ac_int () );
     chan_input.write ( zz  .data_ac_int () );
+    */
 
     dut.kernel ( chan_input, chan_output, pos0x, pos0y, pos0z, epssq );
 
     DuetFunctor::Double phii, accx, accy, accz;
+    
+    DuetFunctor::Block<32> ot;
 
-    phii.set_data ( chan_output.read () );
-    accx.set_data ( chan_output.read () );
-    accy.set_data ( chan_output.read () );
-    accz.set_data ( chan_output.read () );
+    phii.set_data ( ot.template slc<32> (0) );
+    accx.set_data ( ot.template slc<32> (32) );
+    accy.set_data ( ot.template slc<32> (64) );
+    accz.set_data ( ot.template slc<32> (96) );
 
     printf ( "phii (%f), acc (%f, %f, %f)\n",
             phii.to_double (), accx.to_double (), accy.to_double (), accz.to_double () );
