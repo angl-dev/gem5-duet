@@ -23,15 +23,9 @@ public:
         dequeue_data ( chan_arg, nodeptr );
 
         // assume >= 64B cache line size:
-
-        // load mass(p) = +8, pos[0] = +16, pos[1] = +24, pos[2] = +32
+        // For Yanwen's NN, we should have
+        // load pos[0] = +0, pos[1] = +8, pos[2] = +16, and pos[3] = +24
         enqueue_req ( chan_req, REQTYPE_LD, 64, nodeptr );
-
-        // load quad(p): xx = +104, xy = +112, xz = +120
-        enqueue_req ( chan_req, REQTYPE_LD, 64, nodeptr + 64 );
-
-        // load quad(p): yy = +136, yz = +144, zz = +168
-        enqueue_req ( chan_req, REQTYPE_LD, 64, nodeptr + 128 );
     }
 
 #ifndef __DUET_HLS

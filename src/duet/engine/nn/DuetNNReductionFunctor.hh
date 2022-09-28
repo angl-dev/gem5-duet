@@ -15,45 +15,28 @@ class DuetNNReductionFunctor : public DuetFunctor
 public:
     #pragma hls_design top
     void kernel (
-            ac_channel <Block<32>> &    chan_input
-
-            , const Double &            phii_ci
-            , const Double &            accx_ci
-            , const Double &            accy_ci
-            , const Double &            accz_ci
-
-            ,       Double &            phii_co
-            ,       Double &            accx_co
-            ,       Double &            accy_co
-            ,       Double &            accz_co
+            ac_channel <Block<8>> &    chan_input
+            , const Double &            result_ci
+            ,       Double &            result_co
             )
     {
-        Double ci[4] = { phii_ci, accx_ci, accy_ci, accz_ci };
+        Double ci[1] = { result_ci };
 
-        Block<32> tmp;
+        Block<8> tmp;
         dequeue_data ( chan_input, tmp );
 
-        #pragma unroll yes
-        for ( int i = 0; i < 4; i++ ) {
-            Double inc;
-            unpack ( tmp, i, inc );
-            ci[i] += inc;
-        }
+        Double min_dist;
+        unpack ( tmp, i, min_dist );       
+        ci[0] = ci[0] < min_dist ? ci[0] : min_dist ;
 
-        phii_co = ci[0];
-        accx_co = ci[1];
-        accy_co = ci[2];
-        accz_co = ci[3];
+        result_co = ci[0];
     }
 
 #ifndef __DUET_HLS
 private:
     chan_data_t   * _chan_input;
 
-    Double          _phii;
-    Double          _accx;
-    Double          _accy;
-    Double          _accz;
+    Double          _result;
 
 protected:
     void run () override final;

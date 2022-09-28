@@ -7,22 +7,16 @@ int main ( int argc, char * argv[] ) {
     DuetNNComputeFunctor dut;
 
     ac_channel <DuetFunctor::Block<64>> chan_input;
-    ac_channel <DuetFunctor::Block<32>> chan_output;
+    ac_channel <DuetFunctor::Block<8>> chan_output;
 
     const DuetFunctor::Double pos0x ( 0.5f ),
                               pos0y ( 0.5f ),
                               pos0z ( 0.5f ),
-                              epssq ( 1e-8 ),
+                              pos0w ( 0.5f ),
                               posx  ( 0.7f ),
                               posy  ( 0.2f ),
                               posz  ( 0.3f ),
-                              mass  ( 1.0f ),
-                              xx    ( 0.5f ),
-                              xy    ( 0.5f ),
-                              xz    ( 0.5f ),
-                              yy    ( 0.5f ),
-                              yz    ( 0.5f ),
-                              zz    ( 0.5f );
+                              posw  ( 0.4f );
 
     DuetFunctor::Block<64> tmp;
     chan_input.write ( tmp );
@@ -42,19 +36,16 @@ int main ( int argc, char * argv[] ) {
     chan_input.write ( zz  .data_ac_int () );
     */
 
-    dut.kernel ( chan_input, chan_output, pos0x, pos0y, pos0z, epssq );
+    dut.kernel ( chan_input, chan_output, pos0x, pos0y, pos0z, pos0w );
 
-    DuetFunctor::Double phii, accx, accy, accz;
+    DuetFunctor::Double result;
 
-    DuetFunctor::Block<32> ot;
+    DuetFunctor::Block<8> ot;
 
-    phii.set_data ( ot.template slc<32> (0) );
-    accx.set_data ( ot.template slc<32> (32) );
-    accy.set_data ( ot.template slc<32> (64) );
-    accz.set_data ( ot.template slc<32> (96) );
+    result.set_data ( ot.template slc<32> (0) );
 
-    printf ( "phii (%f), acc (%f, %f, %f)\n",
-            phii.to_double (), accx.to_double (), accy.to_double (), accz.to_double () );
+    printf ( "phii (%f)\n",
+            result.to_double () );
 
     return 0;
 }

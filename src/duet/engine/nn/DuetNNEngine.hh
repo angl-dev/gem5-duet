@@ -1,8 +1,8 @@
 #ifndef __DUET_NN_ENGINE_HH
 #define __DUET_NN_ENGINE_HH
 
-#include "duet/engine/DuetEngine.hh"
 #include "params/DuetNNEngine.hh"
+#include "duet/engine/DuetEngine.hh"
 
 namespace gem5 {
 namespace duet {

@@ -7,7 +7,8 @@
 namespace gem5 {
 namespace duet {
 
-class DuetBarnesQuadEngine : public DuetEngine {
+class DuetBarnesQuadEngine : public DuetEngine 
+{
 private:
     static const constexpr softreg_id_t num_softreg_per_caller  = 16;
 

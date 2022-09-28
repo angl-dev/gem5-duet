@@ -22,6 +22,12 @@ system.engines = [DuetBarnesQuadEngine (
 for engine in system.engines:
     integrate ( args, system, process, engine )
 
+# ------ Yanwen addition -----
+
+system.cpus[0].workload[0].release = "99.99.99"
+
+# ----------------------------
+
 process.drivers = DuetDriver (
         filename = "duet",
         range = AddrRange ( args.duet_addr, size=args.duet_size )
