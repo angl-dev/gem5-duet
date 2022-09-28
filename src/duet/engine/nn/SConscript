@@ -1,0 +1,13 @@
+Import('*')
+
+SimObject('DuetNN.py', sim_objects=[
+    'DuetNNMemLane',
+    'DuetNNComputeLane',
+    'DuetNNEngine'
+    ])
+
+Source('DuetNNMemFunctor.cc')
+Source('DuetNNMemLane.cc')
+Source('DuetNNComputeFunctor.cc')
+Source('DuetNNComputeLane.cc')
+Source('DuetNNEngine.cc')
