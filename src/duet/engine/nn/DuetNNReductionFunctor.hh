@@ -26,8 +26,8 @@ public:
 
         Double min_dist;
         unpack ( tmp, 0, min_dist );       
-        //ci[0] = ci[0] < min_dist ? ci[0] : min_dist ;
-        ci[0] += min_dist;
+        ci[0] = ci[0] < min_dist ? ci[0] : min_dist ;
+        // ci[0] += min_dist;
 
         result_co = ci[0];
     }

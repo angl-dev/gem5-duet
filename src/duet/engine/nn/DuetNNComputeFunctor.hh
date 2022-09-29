@@ -37,10 +37,10 @@ public:
 
             // 4*8 = 32
             dequeue_data ( chan_input, tmp ); // 0
-            unpack ( tmp, 1, pos[0] );
-            unpack ( tmp, 2, pos[1] );
-            unpack ( tmp, 3, pos[2] );
-            unpack ( tmp, 4, pos[3] );
+            unpack ( tmp, 0, pos[0] );
+            unpack ( tmp, 1, pos[1] );
+            unpack ( tmp, 2, pos[2] );
+            unpack ( tmp, 3, pos[3] );
         }
 
         Double dr[4];
