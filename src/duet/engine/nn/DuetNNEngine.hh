@@ -1,5 +1,4 @@
-#ifndef __DUET_NN_ENGINE_HH
-#define __DUET_NN_ENGINE_HH
+#pragma once
 
 #include "params/DuetNNEngine.hh"
 #include "duet/engine/DuetEngine.hh"
@@ -38,5 +37,3 @@ protected:
 
 }   // namespace duet
 }   // namespace gem5
-
-#endif /* #ifndef __DUET_NN_ENGINE_HH */

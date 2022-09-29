@@ -108,7 +108,7 @@ bool DuetNNEngine::handle_softreg_read (
 
     case 6:     // result
         value = get_constant <uint64_t> ( caller_id, "result" );
-        set_constant ( caller_id, "result", double (0.f) );
+        set_constant ( caller_id, "result", double (999999.f) );
         set_constant <uint64_t> ( caller_id, "cnt", 0 );
         return true;
 
@@ -130,7 +130,7 @@ void DuetNNEngine::init () {
             ++caller_id )
     {
         set_constant <uint64_t> ( caller_id, "cnt", 0 );
-        set_constant ( caller_id, "result", double (0.f) );
+        set_constant ( caller_id, "result", double (999999.f) );
     }
 }
 

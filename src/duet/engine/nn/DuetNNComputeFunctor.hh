@@ -1,5 +1,4 @@
-#ifndef __DUET_NN_COMPUTE_FUNCTOR_HH
-#define __DUET_NN_COMPUTE_FUNCTOR_HH
+#pragma once
 
 #ifdef __DUET_HLS
     #include "hls/functor.hh"
@@ -19,7 +18,7 @@ public:
     #pragma hls_design top
     void kernel (
             ac_channel <Block<64>> &    chan_input
-            , ac_channel <Block<8>> &  chan_output
+            , ac_channel <Block<32>> &  chan_output
             , const Double &            pos0x_ci
             , const Double &            pos0y_ci
             , const Double &            pos0z_ci
@@ -37,7 +36,7 @@ public:
             Block<64> tmp;
 
             // 4*8 = 32
-            dequeue_data ( chan_input, tmp );
+            dequeue_data ( chan_input, tmp ); // 0
             unpack ( tmp, 1, pos[0] );
             unpack ( tmp, 2, pos[1] );
             unpack ( tmp, 3, pos[2] );
@@ -54,9 +53,9 @@ public:
         Double drabs = sqrt (drsq);
 
         {
-            Block<8> tmp;
+            Block<32> tmp;
             pack ( tmp, 0, drabs );
-            enqueue_data ( chan_output, tmp );
+            enqueue_data ( chan_output, tmp ); // 1
         }
     }
 
@@ -86,5 +85,3 @@ public:
     }   // namespace gem5
     }   // namespace duet
 #endif /* #ifndef __DUET_HLS */
-
-#endif /* #ifndef __DUET_NN_COMPUTE_FUNCTOR_HH */

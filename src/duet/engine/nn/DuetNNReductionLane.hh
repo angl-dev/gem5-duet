@@ -1,5 +1,4 @@
-#ifndef __DUET_NN_REDUCTION_LANE_HH
-#define __DUET_NN_REDUCTION_LANE_HH
+#pragma once
 
 #include "duet/engine/DuetSimpleLane.hh"
 
@@ -17,5 +16,3 @@ public:
 
 }   // namespace duet
 }   // namespace gem5
-
-#endif /* #ifndef __DUET_NN_REDUCTION_LANE_HH */

@@ -1,5 +1,4 @@
-#ifndef __DUET_NN_MEM_FUNCTOR_HH
-#define __DUET_NN_MEM_FUNCTOR_HH
+#pragma once
 
 #ifdef __DUET_HLS
     #include "hls/functor.hh"
@@ -20,12 +19,12 @@ public:
             )
     {
         addr_t nodeptr;
-        dequeue_data ( chan_arg, nodeptr );
+        dequeue_data ( chan_arg, nodeptr ); // 0
 
         // assume >= 64B cache line size:
-        // For Yanwen's NN, we should have
-        // load pos[0] = +0, pos[1] = +8, pos[2] = +16, and pos[3] = +24
-        enqueue_req ( chan_req, REQTYPE_LD, 64, nodeptr );
+        // load pos[0] = +8, pos[1] = +16, pos[2] = +24, pos[] = +32
+        enqueue_req ( chan_req, REQTYPE_LD, 64, nodeptr ); // 1
+
     }
 
 #ifndef __DUET_HLS
@@ -49,5 +48,3 @@ public:
     }   // namespace gem5
     }   // namespace duet
 #endif /* #ifndef __DUET_HLS */
-
-#endif /* #ifndef __DUET_NN_MEM_FUNCTOR_HH */
