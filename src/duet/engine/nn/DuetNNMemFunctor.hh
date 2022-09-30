@@ -23,8 +23,10 @@ public:
 
         // assume >= 64B cache line size:
         // load pos[0] = +8, pos[1] = +16, pos[2] = +24, pos[] = +32
-        enqueue_req ( chan_req, REQTYPE_LD, 64, nodeptr ); // 1
+        // Next 32 is Second particle
 
+        enqueue_req ( chan_req, REQTYPE_LD, 64, nodeptr ); // 1
+        enqueue_req ( chan_req, REQTYPE_LD, 64, nodeptr + 64 ); // 2
     }
 
 #ifndef __DUET_HLS

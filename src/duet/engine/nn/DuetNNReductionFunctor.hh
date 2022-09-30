@@ -19,16 +19,22 @@ public:
             ,       Double &            result_co
             )
     {
-        Double ci[1] = { result_ci };
+        Double ci[1] = { result_ci }; // a.k.a min distance stored so far
 
         Block<32> tmp;
         dequeue_data ( chan_input, tmp );
 
-        Double min_dist;
-        unpack ( tmp, 0, min_dist );       
-        ci[0] = ci[0] < min_dist ? ci[0] : min_dist ;
-        // ci[0] += min_dist;
+        Double min_dist[4];
+        unpack ( tmp, 0, min_dist[0] );
+        unpack ( tmp, 1, min_dist[1] );
+        unpack ( tmp, 2, min_dist[2] );
+        unpack ( tmp, 3, min_dist[3] );
 
+        ci[0] = ci[0] < min_dist[0] ? ci[0] : min_dist[0] ;
+        ci[0] = ci[0] < min_dist[1] ? ci[0] : min_dist[1] ;
+        ci[0] = ci[0] < min_dist[2] ? ci[0] : min_dist[2] ;
+        ci[0] = ci[0] < min_dist[3] ? ci[0] : min_dist[3] ;
+        
         result_co = ci[0];
     }
 
