@@ -14,20 +14,34 @@ class DuetNNReductionFunctor : public DuetFunctor
 public:
     #pragma hls_design top
     void kernel (
-            ac_channel <Block<32>> &    chan_input
+            ac_channel <Block<64>> &    chan_input
             , const Double &            result_ci
             ,       Double &            result_co
             )
     {
-        Double ci[1] = { result_ci };
+        Double ci[1] = { result_ci }; // a.k.a min distance stored so far
 
-        Block<32> tmp;
-        dequeue_data ( chan_input, tmp );
+        Double min_dist[32];
 
-        Double min_dist;
-        unpack ( tmp, 0, min_dist );       
-        ci[0] = ci[0] < min_dist ? ci[0] : min_dist ;
-        // ci[0] += min_dist;
+        Block<64> tmp;
+        for(int i = 0; i < 32; i+=8)
+        {
+            dequeue_data ( chan_input, tmp ); // 0
+            unpack ( tmp, 0, min_dist[i] );
+            unpack ( tmp, 1, min_dist[i+1] );
+            unpack ( tmp, 2, min_dist[i+2] );
+            unpack ( tmp, 3, min_dist[i+3] );
+            unpack ( tmp, 4, min_dist[i+4] );
+            unpack ( tmp, 5, min_dist[i+5] );
+            unpack ( tmp, 6, min_dist[i+6] );
+            unpack ( tmp, 7, min_dist[i+7] );
+        }
+
+        // This is sequential implementation
+        for(int i = 0; i < 32; ++i)
+        {
+            ci[0] = ci[0] < min_dist[i] ? ci[0] : min_dist[i] ;
+        }
 
         result_co = ci[0];
     }
