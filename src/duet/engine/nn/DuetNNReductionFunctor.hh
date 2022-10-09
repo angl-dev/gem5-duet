@@ -44,9 +44,8 @@ class DuetNNReductionFunctor : public DuetFunctor {
 #pragma unroll yes
       for (int tid = 0; tid < 16; ++tid) {
         if (tid < s) {
-          min_dist[tid] = 
-                min_dist[tid] < min_dist[tid + s] ? min_dist[tid]
-                                                  : min_dist[tid + s];
+          min_dist[tid] = min_dist[tid] < min_dist[tid + s] ? min_dist[tid]
+                                                            : min_dist[tid + s];
         }
       }
     }
