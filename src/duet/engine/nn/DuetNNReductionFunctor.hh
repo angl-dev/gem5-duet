@@ -10,48 +10,32 @@ namespace gem5 {
 namespace duet {
 #endif /* #ifdef __DUET_HLS */
 
+#define MIN(x,y) ((x) < (y) ? (x) : (y))
+
 class DuetNNReductionFunctor : public DuetFunctor {
  public:
 #pragma hls_design top
-  void kernel(ac_channel<Block<64>>& chan_input, const Double& result_ci,
-              Double& result_co) {
-    Double ci[1] = {result_ci};  // a.k.a min distance stored so far
+  void kernel(
+          ac_channel<Block<16>>& chan_input,
+          const Double& result_ci,
+          Double& result_co)
+  {
+    Double min_[2] = {result_ci, result_ci};
 
-    Double min_dist[32];
+    // 16 times
+    for (int i = 0; i < 16; ++i ) {
+        Block<16> tmp;
+        dequeue_data ( chan_input, tmp );
 
-    Block<64> tmp;
-    for (int i = 0; i < 32; i += 8) {
-      dequeue_data(chan_input, tmp);  // 0
-      unpack(tmp, 0, min_dist[i]);
-      unpack(tmp, 1, min_dist[i + 1]);
-      unpack(tmp, 2, min_dist[i + 2]);
-      unpack(tmp, 3, min_dist[i + 3]);
-      unpack(tmp, 4, min_dist[i + 4]);
-      unpack(tmp, 5, min_dist[i + 5]);
-      unpack(tmp, 6, min_dist[i + 6]);
-      unpack(tmp, 7, min_dist[i + 7]);
-    }
-
-    // This is sequential implementation
-    // for (int i = 0; i < 32; ++i)
-    //{
-    //    ci[0] = ci[0] < min_dist[i] ? ci[0] : min_dist[i] ;
-    //}
-
-    // This is my first attenpt to do parrallel reduction
-    // s = 16, 8, 4, 2, 1, 0
-    for (int s = 16; s > 0; s >>= 1) {
-#pragma unroll yes
-      for (int tid = 0; tid < 16; ++tid) {
-        if (tid < s) {
-          min_dist[tid] = min_dist[tid] < min_dist[tid + s] ? min_dist[tid]
-                                                            : min_dist[tid + s];
+        #pragma unroll yes
+        for ( int j = 0; j < 2; ++j ) {
+            Double din;
+            unpack ( tmp, j, din );
+            min_[j] = MIN (min_[j], din);
         }
-      }
     }
 
-    ci[0] = ci[0] < min_dist[0] ? ci[0] : min_dist[0];
-    result_co = ci[0];
+    result_co = MIN (min_[0], min_[1]);
   }
 
 #ifndef __DUET_HLS

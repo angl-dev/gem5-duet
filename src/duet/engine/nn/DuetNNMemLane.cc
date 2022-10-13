@@ -22,13 +22,25 @@ DuetFunctor* DuetNNMemLane::new_functor() {
       auto f = new DuetNNMemFunctor(this, id.id);
 
       // notify other lanes
-      for (DuetFunctor::caller_id_t j = 1; j <= 2; ++j) {
-        DuetFunctor::chan_id_t id2 = {DuetFunctor::chan_id_t::PUSH, j};
+      //    16 executions of the compute functor per 1 execution of the memory functor 
+      {
+        DuetFunctor::chan_id_t id2 = {DuetFunctor::chan_id_t::PUSH, 1};
+        auto& chan2 = engine->get_chan_data (id2);
 
-        auto& chan2 = engine->get_chan_data(id2);
-        auto& data =
-            chan2.emplace_back(new uint8_t[sizeof(DuetFunctor::caller_id_t)]);
-        memcpy(data.get(), &id.id, sizeof(DuetFunctor::caller_id_t));
+        for ( int j = 0; j < 16; ++j ) {
+            auto& data = chan2
+                .emplace_back (new uint8_t[sizeof(DuetFunctor::caller_id_t)]);
+            memcpy (data.get(), &id.id, sizeof (DuetFunctor::caller_id_t));
+        }
+      }
+
+      //    one execution of the reduction functor per 1 execution of the memory functor
+      {
+        DuetFunctor::chan_id_t id2 = {DuetFunctor::chan_id_t::PUSH, 2};
+        auto& chan2 = engine->get_chan_data (id2);
+        auto& data = chan2
+            .emplace_back (new uint8_t[sizeof(DuetFunctor::caller_id_t)]);
+        memcpy (data.get(), &id.id, sizeof (DuetFunctor::caller_id_t));
       }
 
       engine->stats_exec_start(id.id);
