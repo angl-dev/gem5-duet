@@ -1,0 +1,4 @@
+all: ../bin/riscv/linux/hello
+
+../bin/riscv/linux/hello: hello.c
+	riscv64-unknown-linux-gnu-g++ -o $@ $< -O3 -static
