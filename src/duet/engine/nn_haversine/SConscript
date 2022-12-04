@@ -1,0 +1,16 @@
+Import('*')
+
+SimObject('DuetNNHav.py', sim_objects=[
+    'DuetNNHavMemLane',
+    'DuetNNHavComputeLane',
+    'DuetNNHavReductionLane',
+    'DuetNNHavEngine'
+    ])
+
+Source('DuetNNHavMemFunctor.cc')
+Source('DuetNNHavMemLane.cc')
+Source('DuetNNHavComputeFunctor.cc')
+Source('DuetNNHavComputeLane.cc')
+Source('DuetNNHavReductionFunctor.cc')
+Source('DuetNNHavReductionLane.cc')
+Source('DuetNNHavEngine.cc')

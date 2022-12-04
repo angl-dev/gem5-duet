@@ -1,0 +1,16 @@
+Import('*')
+
+SimObject('BatchedBarnes.py', sim_objects=[
+    'BatchedBarnesMemLane',
+    'BatchedBarnesComputeLane',
+    'BatchedBarnesReductionLane',
+    'BatchedBarnesEngine'
+])
+
+Source('BatchedBarnesMemFunctor.cc')
+Source('BatchedBarnesMemLane.cc')
+Source('BatchedBarnesComputeFunctor.cc')
+Source('BatchedBarnesComputeLane.cc')
+Source('BatchedBarnesReductionFunctor.cc')
+Source('BatchedBarnesReductionLane.cc')
+Source('BatchedBarnesEngine.cc')
