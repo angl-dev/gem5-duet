@@ -1,5 +1,7 @@
 #include "duet/engine/nn/DuetNNEngine.hh"
 
+#include <iostream>
+
 namespace gem5 {
 namespace duet {
 
@@ -8,11 +10,11 @@ DuetEngine::softreg_id_t DuetNNEngine::get_num_softregs() const {
 }
 
 DuetFunctor::caller_id_t DuetNNEngine::get_num_memory_chans() const {
-  return 1;
+  return 2;
 }
 
 DuetFunctor::caller_id_t DuetNNEngine::get_num_interlane_chans() const {
-  return 3;
+  return 4;
 }
 
 unsigned DuetNNEngine::get_max_stats_waittime() const { return 5000; }
@@ -101,7 +103,12 @@ bool DuetNNEngine::handle_softreg_read(DuetEngine::softreg_id_t softreg_id,
       value = get_constant<uint64_t>(caller_id, "cnt");
       return true;
 
-    case 7:  // result
+    case 7:  // result ready
+      value = get_constant<uint64_t>(caller_id, "result_ready");
+      std::cout << value << std::endl;
+      return true;
+
+    case 8:  // reset cnt
       set_constant<uint64_t>(caller_id, "cnt", 0);
       return true;
 
@@ -111,7 +118,10 @@ bool DuetNNEngine::handle_softreg_read(DuetEngine::softreg_id_t softreg_id,
   }
 }
 
-void DuetNNEngine::try_send_mem_req_all() { try_send_mem_req_one(0); }
+void DuetNNEngine::try_send_mem_req_all() {
+    try_send_mem_req_one ( 1 );         // prioritize store
+    try_send_mem_req_one ( 0, true );   // send load request and reserve a slot to prevent deadlock
+}
 
 void DuetNNEngine::init() {
   DuetEngine::init();
@@ -119,6 +129,7 @@ void DuetNNEngine::init() {
   for (DuetFunctor::caller_id_t caller_id = 0; caller_id < get_num_callers();
        ++caller_id) {
     set_constant<uint64_t>(caller_id, "cnt", 0);
+    set_constant<uint64_t>(caller_id, "result_ready", 0);
   }
 }
 

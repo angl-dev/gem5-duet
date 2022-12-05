@@ -4,6 +4,7 @@ SimObject('DuetNN.py', sim_objects=[
     'DuetNNMemLane',
     'DuetNNComputeLane',
     'DuetNNReductionLane',
+    'DuetNNStAckDrainLane',
     'DuetNNEngine'
     ])
 
@@ -13,4 +14,6 @@ Source('DuetNNComputeFunctor.cc')
 Source('DuetNNComputeLane.cc')
 Source('DuetNNReductionFunctor.cc')
 Source('DuetNNReductionLane.cc')
+Source('DuetNNStAckDrainFunctor.cc')
+Source('DuetNNStAckDrainLane.cc')
 Source('DuetNNEngine.cc')

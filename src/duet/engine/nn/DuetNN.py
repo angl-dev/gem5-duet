@@ -28,10 +28,18 @@ class DuetNNReductionLane (DuetSimpleLane):
     cxx_class   = "gem5::duet::DuetNNReductionLane"
     cxx_header  = "duet/engine/nn/DuetNNReductionLane.hh"
 
-    transition_from_stage   = [0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-    transition_to_stage     = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9]
-    transition_latency      = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-    postrun_latency         = 2
+    transition_from_stage   = [0, 0,   1, 2]
+    transition_to_stage     = [0, 1,   2, 1]
+    transition_latency      = [1, 200, 1, 1]
+
+class DuetNNStAckDrainLane (DuetSimpleLane):
+    type        = "DuetNNStAckDrainLane"
+    cxx_class   = "gem5::duet::DuetNNStAckDrainLane"
+    cxx_header  = "duet/engine/nn/DuetNNStAckDrainLane.hh"
+
+    transition_from_stage   = [0]
+    transition_to_stage     = [0]
+    transition_latency      = [1]
 
 class DuetNNEngine (DuetEngine):
     type        = "DuetNNEngine"
@@ -44,5 +52,6 @@ class DuetNNEngine (DuetEngine):
         self.lanes = [
                 DuetNNMemLane (),
                 DuetNNComputeLane (),
-                DuetNNReductionLane ()
+                DuetNNReductionLane (),
+                DuetNNStAckDrainLane ()
                 ]

@@ -43,6 +43,15 @@ DuetFunctor* DuetNNMemLane::new_functor() {
         memcpy (data.get(), &id.id, sizeof (DuetFunctor::caller_id_t));
       }
 
+      //    one execution of the st drain functor per 1 execution of the memory functor
+      {
+        DuetFunctor::chan_id_t id2 = {DuetFunctor::chan_id_t::PUSH, 3};
+        auto& chan2 = engine->get_chan_data (id2);
+        auto& data = chan2
+            .emplace_back (new uint8_t[sizeof(DuetFunctor::caller_id_t)]);
+        memcpy (data.get(), &id.id, sizeof (DuetFunctor::caller_id_t));
+      }
+
       engine->stats_exec_start(id.id);
 
       return f;
