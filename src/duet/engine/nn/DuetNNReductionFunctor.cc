@@ -84,10 +84,6 @@ void DuetNNReductionFunctor::run() {
 
   std::cout << " ---------- _out_addr: " << _out_addr << std::endl;
 
-  // make sure all stores are committed into the memory system
-  for (int i = 0; i < 16; ++i) {
-    dequeue_token(*_chan_input);
-  }
 }
 
 void DuetNNReductionFunctor::finishup() {
